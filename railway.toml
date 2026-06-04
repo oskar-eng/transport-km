@@ -4,5 +4,4 @@ buildCommand = "npm install && npx prisma generate && npm run build"
 
 [deploy]
 startCommand = "npx prisma migrate deploy && npm start"
-healthcheckPath = "/api/auth/session"
 restartPolicyType = "on_failure"
