@@ -428,8 +428,8 @@ export default function FuelClient({
                   <label className="text-xs font-semibold text-gray-700 block mb-1">Odómetro al cargar *</label>
                   <div className="relative">
                     <input type="number" value={form.odometer} onChange={e => set("odometer", e.target.value)} required placeholder="Ej: 290743"
-                      className="w-full border border-gray-200 rounded-lg px-3 pr-10 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">km</span>
+                      className="w-full border-2 border-blue-400 rounded-lg px-3 pr-10 py-2 text-base font-bold text-black focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold text-gray-500">km</span>
                   </div>
                 </div>
                 <div className="col-span-2">

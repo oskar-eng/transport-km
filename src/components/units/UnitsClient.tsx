@@ -297,7 +297,7 @@ export default function UnitsClient({ units: initial, userRole }: { units: Unit[
               {/* Campos del formulario */}
               <div className="grid grid-cols-2 gap-4">
                 {F("Placa *", <input required value={form.plate}
-                  onChange={e => setForm(f => ({...f, plate: e.target.value}))}
+                  onChange={e => setForm(f => ({...f, plate: e.target.value.toUpperCase()}))}
                   placeholder="D9A762"
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono uppercase focus:outline-none focus:ring-2 focus:ring-blue-500" />)}
                 {F("Año *", inp("year", "number", "2024"))}
