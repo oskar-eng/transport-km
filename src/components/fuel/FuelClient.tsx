@@ -9,6 +9,7 @@ const FuelEfficiencyChart = dynamic(() => import("./FuelEfficiencyChart"), { ssr
 
 const FUEL_TYPES: Record<string, string> = { DIESEL: "Diésel", GASOLINA: "Gasolina", GNV: "GNV" };
 const EMPTY_FORM = { unitId: "", date: "", liters: "", pricePerLiter: "", totalCost: "", odometer: "", station: "", fuelType: "DIESEL", notes: "" };
+// Nota: el campo "liters" en DB almacena galones (unidad de la empresa)
 
 interface Unit    { id: string; plate: string; model: string }
 interface FuelRec {
@@ -110,7 +111,7 @@ export default function FuelClient({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.unitId || !form.date || !form.liters || !form.odometer) {
-      setError("Unidad, fecha, litros y odómetro son obligatorios"); return;
+      setError("Unidad, fecha, galones y odómetro son obligatorios"); return;
     }
     setLoading(true); setError("");
     const method = editing ? "PATCH" : "POST";
@@ -184,9 +185,9 @@ export default function FuelClient({
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
         {[
           { label: "Total cargas",      value: records.length,                         color: "bg-blue-500" },
-          { label: "Litros totales",    value: `${totalLiters.toLocaleString()} L`,    color: "bg-indigo-500" },
+          { label: "Galones totales",   value: `${totalLiters.toLocaleString()} Gal`,  color: "bg-indigo-500" },
           { label: "Gasto total",       value: totalCost > 0 ? `S/ ${totalCost.toLocaleString("es-PE", { maximumFractionDigits: 0 })}` : "—", color: "bg-emerald-500" },
-          { label: "Rendimiento prom.", value: avgKmL ? `${avgKmL} km/L` : "—",       color: "bg-purple-500" },
+          { label: "Rendimiento prom.", value: avgKmL ? `${avgKmL} km/Gal` : "—",     color: "bg-purple-500" },
         ].map(k => (
           <div key={k.label} className="bg-white rounded-xl shadow-sm p-4 flex items-center gap-3">
             <div className={`${k.color} p-2.5 rounded-xl shrink-0`}><Fuel size={18} className="text-white" /></div>
@@ -205,7 +206,7 @@ export default function FuelClient({
           <div>
             <p className="text-sm font-semibold text-orange-800">Rendimiento bajo detectado</p>
             <p className="text-xs text-orange-700 mt-0.5">
-              {alerts.length} carga{alerts.length > 1 ? "s" : ""} con rendimiento inferior al 80% del promedio ({avgKmL} km/L).
+              {alerts.length} carga{alerts.length > 1 ? "s" : ""} con rendimiento inferior al 80% del promedio ({avgKmL} km/Gal).
             </p>
           </div>
         </div>
@@ -249,7 +250,7 @@ export default function FuelClient({
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 border-b">
                     <tr>
-                      {["Fecha","Unidad","Litros","Precio/L","Costo total","Odómetro","Rendimiento","Grifo",""].map(h => (
+                      {["Fecha","Unidad","Galones","Precio/Gal","Costo total","Odómetro","Rendimiento","Grifo",""].map(h => (
                         <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -269,7 +270,7 @@ export default function FuelClient({
                             <p className="font-mono font-semibold text-gray-900">{r.unit.plate}</p>
                             <p className="text-xs text-gray-400">{r.unit.model}</p>
                           </td>
-                          <td className="px-4 py-3 font-semibold text-gray-800">{r.liters} L</td>
+                          <td className="px-4 py-3 font-semibold text-gray-800">{r.liters} Gal</td>
                           <td className="px-4 py-3 text-gray-600">{r.pricePerLiter ? `S/ ${r.pricePerLiter}` : "—"}</td>
                           <td className="px-4 py-3 font-semibold">{r.totalCost ? `S/ ${r.totalCost.toLocaleString("es-PE", { maximumFractionDigits: 2 })}` : "—"}</td>
                           <td className="px-4 py-3 text-gray-600">{r.odometer.toLocaleString()} km</td>
@@ -278,7 +279,7 @@ export default function FuelClient({
                               <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${
                                 trend === "up" ? "bg-green-100 text-green-700" : trend === "down" ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-700"}`}>
                                 {trend === "up" ? <TrendingUp size={10}/> : trend === "down" ? <TrendingDown size={10}/> : <Minus size={10}/>}
-                                {r.kmPerLiter} km/L
+                                {r.kmPerLiter} km/Gal
                               </span>
                             ) : <span className="text-gray-300 text-xs">—</span>}
                           </td>
@@ -315,9 +316,9 @@ export default function FuelClient({
                     <p className="text-sm text-gray-500">{u.model}</p>
                   </div>
                   <div className="flex gap-4 text-center">
-                    <div><p className="text-lg font-bold text-blue-700">{u.totalLiters.toLocaleString()} L</p><p className="text-xs text-gray-400">Total litros</p></div>
+                    <div><p className="text-lg font-bold text-blue-700">{u.totalLiters.toLocaleString()} Gal</p><p className="text-xs text-gray-400">Total galones</p></div>
                     <div><p className="text-lg font-bold text-emerald-700">{u.totalCost > 0 ? `S/ ${u.totalCost.toLocaleString("es-PE", { maximumFractionDigits: 0 })}` : "—"}</p><p className="text-xs text-gray-400">Gasto</p></div>
-                    <div><p className="text-lg font-bold text-purple-700">{u.avgKmL ? `${u.avgKmL} km/L` : "—"}</p><p className="text-xs text-gray-400">Rendimiento</p></div>
+                    <div><p className="text-lg font-bold text-purple-700">{u.avgKmL ? `${u.avgKmL} km/Gal` : "—"}</p><p className="text-xs text-gray-400">Rendimiento</p></div>
                     <div><p className="text-lg font-bold text-gray-700">{u.records.length}</p><p className="text-xs text-gray-400">Cargas</p></div>
                   </div>
                 </div>
@@ -372,7 +373,7 @@ export default function FuelClient({
                               <p className="font-semibold mb-1">Datos detectados:</p>
                               {form.unitId && <p>📍 Placa: <strong>{units.find(u => u.id === form.unitId)?.plate}</strong></p>}
                               {form.date && <p>📅 Fecha: <strong>{form.date}</strong></p>}
-                              {form.liters && <p>⛽ Litros: <strong>{form.liters} L</strong></p>}
+                              {form.liters && <p>⛽ Galones: <strong>{form.liters} Gal</strong></p>}
                               {form.totalCost && <p>💰 Total: <strong>S/ {form.totalCost}</strong></p>}
                               {form.odometer && <p>🛣️ KM: <strong>{Number(form.odometer).toLocaleString()}</strong></p>}
                               {form.station && <p>🏪 Grifo: <strong>{form.station}</strong></p>}
@@ -409,13 +410,13 @@ export default function FuelClient({
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-gray-700 block mb-1">Litros cargados *</label>
-                  <input type="number" step="0.01" value={form.liters} onChange={e => set("liters", e.target.value)} required placeholder="Ej: 120.5"
+                  <label className="text-xs font-semibold text-gray-700 block mb-1">Galones cargados *</label>
+                  <input type="number" step="0.01" value={form.liters} onChange={e => set("liters", e.target.value)} required placeholder="Ej: 31.8"
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-gray-700 block mb-1">Precio por litro</label>
-                  <input type="number" step="0.01" value={form.pricePerLiter} onChange={e => set("pricePerLiter", e.target.value)} placeholder="Ej: 5.20"
+                  <label className="text-xs font-semibold text-gray-700 block mb-1">Precio por galón</label>
+                  <input type="number" step="0.01" value={form.pricePerLiter} onChange={e => set("pricePerLiter", e.target.value)} placeholder="Ej: 19.70"
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
                 <div>
