@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+
+# Environment (NUNCA subir al repo)
+.env
+.env.local
+.env.production
+
+# Database local
+prisma/dev.db
+prisma/dev.db-journal
+prisma/*.db
+
+# Uploads locales (en producción usar Cloudinary)
+public/uploads/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

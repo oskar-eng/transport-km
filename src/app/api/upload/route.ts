@@ -1,0 +1,52 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+
+// Si hay Cloudinary configurado → usa cloud
+// Si no → guarda local (desarrollo)
+const USE_CLOUDINARY = !!(
+  process.env.CLOUDINARY_CLOUD_NAME &&
+  process.env.CLOUDINARY_API_KEY &&
+  process.env.CLOUDINARY_API_SECRET
+);
+
+export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+  const formData = await req.formData();
+  const file = formData.get("file") as File | null;
+  if (!file) return NextResponse.json({ error: "No se recibió archivo" }, { status: 400 });
+
+  const bytes = await file.arrayBuffer();
+  const buffer = Buffer.from(bytes);
+
+  /* ── CLOUDINARY (producción) ── */
+  if (USE_CLOUDINARY) {
+    const base64 = buffer.toString("base64");
+    const dataUri = `data:${file.type};base64,${base64}`;
+
+    const form = new FormData();
+    form.append("file", dataUri);
+    form.append("upload_preset", "transport_km");
+    form.append("folder", "transport-km");
+
+    const res = await fetch(
+      `https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload`,
+      { method: "POST", body: form }
+    );
+    const data = await res.json();
+    if (!res.ok) return NextResponse.json({ error: data.error?.message ?? "Error Cloudinary" }, { status: 500 });
+    return NextResponse.json({ url: data.secure_url });
+  }
+
+  /* ── LOCAL (desarrollo) ── */
+  const { writeFile, mkdir } = await import("fs/promises");
+  const path = await import("path");
+  const ext  = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
+  const name = `unit_${Date.now()}.${ext}`;
+  const dir  = path.join(process.cwd(), "public", "uploads", "units");
+  await mkdir(dir, { recursive: true });
+  await writeFile(path.join(dir, name), buffer);
+  return NextResponse.json({ url: `/uploads/units/${name}` });
+}

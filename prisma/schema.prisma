@@ -1,0 +1,196 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      String   @default("CONDUCTOR")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders            ServiceOrder[]
+  pushSubscriptions PushSubscription[]
+  driverProfile     DriverProfile?
+}
+
+model DriverProfile {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  dni             String    @unique
+  firstName       String
+  lastName        String
+  licenseNumber   String
+  licenseCategory String    // A-I | A-IIa | A-IIb | A-IIIa | A-IIIb | A-IIIc | B-I | B-IIa | B-IIb | B-IIc
+  licenseExpiry   DateTime
+  phone           String?
+  joinDate        DateTime?
+  status          String    @default("ACTIVO") // ACTIVO | INACTIVO | SUSPENDIDO
+  photoUrl        String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Unit {
+  id              String    @id @default(cuid())
+  plate           String    @unique
+  brand           String?
+  model           String
+  year            Int
+  vin             String?
+  vehicleType     String?
+  axles           Int?
+  loadCapacity    Float?
+  fuelCapacity    Float?
+  ownerCompany    String?
+  status          String    @default("DISPONIBLE")
+  acquisitionDate DateTime?
+  photoUrl        String?
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  orders       ServiceOrder[]
+  documents    VehicleDocument[]
+  fuelRecords  FuelRecord[]
+  maintenance  MaintenanceRecord[]
+  tires        Tire[]
+  otherCosts   OtherCost[]
+}
+
+model ServiceOrder {
+  id              String   @id @default(cuid())
+  orderNumber     String   @unique
+  type            String
+  status          String   @default("PENDIENTE")
+  clientName      String
+  origin          String?
+  destination     String?
+  containerNumber String?
+  driverId        String
+  unitId          String
+  shareToken      String?  @unique
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  driver User          @relation(fields: [driverId], references: [id])
+  unit   Unit          @relation(fields: [unitId], references: [id])
+  events ServiceEvent[]
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model OtherCost {
+  id          String   @id @default(cuid())
+  unitId      String
+  category    String   // PEAJE | SEGURO | LLANTAS | CONDUCTOR | ADMINISTRATIVO | OTRO
+  description String
+  amount      Float
+  date        DateTime
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  unit Unit @relation(fields: [unitId], references: [id])
+}
+
+model Tire {
+  id                  String   @id @default(cuid())
+  unitId              String
+  brand               String
+  size                String
+  position            String   // DEL_IZQ | DEL_DER | TRA_IZQ_EXT | TRA_IZQ_INT | TRA_DER_EXT | TRA_DER_INT | REPUESTO
+  installDate         DateTime
+  installOdometer     Int
+  currentOdometer     Int
+  status              String   @default("ACTIVO") // ACTIVO | DESGASTADO | REPARACION | BAJA
+  notes               String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  unit Unit @relation(fields: [unitId], references: [id])
+}
+
+model MaintenanceRecord {
+  id               String   @id @default(cuid())
+  unitId           String
+  type             String   // PREVENTIVO | CORRECTIVO | PREDICTIVO
+  status           String   @default("PENDIENTE") // PENDIENTE | EN_PROCESO | COMPLETADO
+  description      String
+  date             DateTime
+  odometer         Int
+  workshop         String?
+  technician       String?
+  cost             Float?
+  nextDate         DateTime?
+  nextOdometer     Int?
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  unit Unit @relation(fields: [unitId], references: [id])
+}
+
+model FuelRecord {
+  id           String   @id @default(cuid())
+  unitId       String
+  date         DateTime
+  liters       Float
+  pricePerLiter Float?
+  totalCost    Float?
+  odometer     Int
+  station      String?
+  fuelType     String   @default("DIESEL") // DIESEL | GASOLINA | GNV
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  unit Unit @relation(fields: [unitId], references: [id])
+}
+
+model VehicleDocument {
+  id          String   @id @default(cuid())
+  unitId      String
+  type        String   // SOAT | REVISION_TECNICA | SEGURO | PERMISO_MTC | CERTIFICADO | OTRO
+  name        String
+  issueDate   DateTime?
+  expiryDate  DateTime
+  fileUrl     String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  unit Unit @relation(fields: [unitId], references: [id])
+}
+
+model ServiceEvent {
+  id             String   @id @default(cuid())
+  serviceOrderId String
+  eventType      String
+  timestamp      DateTime @default(now())
+  odometer       Int?
+  notes          String?
+  latitude       Float?
+  longitude      Float?
+
+  order ServiceOrder @relation(fields: [serviceOrderId], references: [id])
+}
