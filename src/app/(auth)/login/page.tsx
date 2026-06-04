@@ -36,8 +36,8 @@ export default function LoginPage() {
           <div className="bg-blue-800 rounded-full p-3 mb-3">
             <Truck className="text-white" size={32} />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">TransportKM</h1>
-          <p className="text-gray-500 text-sm mt-1">Sistema de Gestión de Transporte</p>
+          <h1 className="text-2xl font-bold text-gray-900">Transporte Yacz Cargo</h1>
+          <p className="text-gray-500 text-sm mt-1">Gestión de Flotas</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -94,7 +94,7 @@ export default function LoginPage() {
         </form>
 
         <p className="text-center text-xs text-gray-400 mt-6">
-          © 2024 TransportKM — Todos los derechos reservados
+          © 2025 Transporte Yacz Cargo — Todos los derechos reservados
         </p>
       </div>
     </div>

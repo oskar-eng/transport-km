@@ -48,8 +48,8 @@ export default function Sidebar({ collapsed, onToggle }: Props) {
           <div className="flex items-center gap-2 min-w-0">
             <Truck className="text-white shrink-0" size={22} />
             <div className="min-w-0">
-              <p className="text-white font-bold text-sm leading-tight truncate">TransportKM</p>
-              <p className="text-blue-200 text-xs truncate">Sistema de Gestión</p>
+              <p className="text-white font-bold text-sm leading-tight truncate">Yacz Cargo</p>
+              <p className="text-blue-200 text-xs truncate">Gestión de Flotas</p>
             </div>
           </div>
         )}

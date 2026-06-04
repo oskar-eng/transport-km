@@ -6,8 +6,8 @@ import { Providers } from "./providers";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "TransportKM — Gestión de Transporte",
-  description: "Sistema de control de kilómetros y estados para flota de transporte",
+  title: "Transporte Yacz Cargo — Gestión de Flotas",
+  description: "Sistema de gestión de flota de transporte de carga",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

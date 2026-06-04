@@ -97,7 +97,7 @@ export default function PublicTracker({ token }: { token: string }) {
         <div className="max-w-2xl mx-auto">
           <div className="flex items-center gap-2 mb-1">
             <Truck size={20} />
-            <span className="text-sm font-medium text-blue-200">TransportKM — Seguimiento de Orden</span>
+            <span className="text-sm font-medium text-blue-200">Transporte Yacz Cargo — Seguimiento de Orden</span>
           </div>
           <h1 className="text-2xl font-bold">Orden {data.orderNumber}</h1>
           <p className="text-blue-200 text-sm mt-0.5">
@@ -238,7 +238,7 @@ export default function PublicTracker({ token }: { token: string }) {
 
         {/* Footer */}
         <p className="text-center text-xs text-gray-400 pb-6">
-          TransportKM · Enlace de solo lectura · Actualización automática cada 15 s
+          Transporte Yacz Cargo · Enlace de solo lectura · Actualización automática cada 15 s
         </p>
       </div>
     </div>
