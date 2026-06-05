@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import Sidebar from "./Sidebar";
 import NotificationBell from "./NotificationBell";
+import ChatBot from "./ChatBot";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -35,6 +36,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           {children}
         </div>
       </main>
+      <ChatBot />
     </div>
   );
 }
