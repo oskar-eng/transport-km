@@ -84,6 +84,23 @@ model Unit {
   maintenance   MaintenanceRecord[]
   tires         Tire[]
   otherCosts    OtherCost[]
+  expenses      Expense[]
+}
+
+model Expense {
+  id            String   @id @default(cuid())
+  unitId        String
+  category      String   // LLANTAS | ELECTRICO | REPUESTOS | OTROS
+  description   String
+  amount        Float
+  date          DateTime
+  receiptUrl    String?
+  createdById   String?
+  createdByName String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  unit Unit @relation(fields: [unitId], references: [id], onDelete: Cascade)
 }
 
 model UnitDocument {
