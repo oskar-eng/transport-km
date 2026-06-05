@@ -36,9 +36,9 @@ const navGroups: { title: string | null; key: string; icon: typeof Package | nul
   { title: "Mantenimiento de Flota", key: "mantflota", icon: Wrench, items: [
     { href: "/almacen",                          label: "Almacén de Repuestos",   icon: Boxes,         roles: ALL },
     { href: "/proximamente?m=Programación Preventiva",  label: "Programación Preventiva", icon: CalendarClock, roles: ALL },
-    { href: "/proximamente?m=Plantillas de Mantenimiento", label: "Plantillas",          icon: Layers,        roles: ALL },
+    { href: "/plantillas",                                 label: "Plantillas",          icon: Layers,        roles: ALL },
     { href: "/incidencias",                                label: "Incidencias",         icon: AlertTriangle, roles: [...ALL, "CONDUCTOR"] },
-    { href: "/proximamente?m=Órdenes de Trabajo",          label: "Órdenes de Trabajo",  icon: ClipboardCheck, roles: ALL },
+    { href: "/ordenes-trabajo",                            label: "Órdenes de Trabajo",  icon: ClipboardCheck, roles: ALL },
     { href: "/solicitud-materiales",                       label: "Solicitud Materiales", icon: ScrollText,   roles: ALL },
     { href: "/proximamente?m=Compras / Requerimientos",    label: "Compras",             icon: ShoppingCart,  roles: ALL },
     { href: "/proximamente?m=Costos de Mantenimiento",     label: "Costos Mantenimiento", icon: DollarSign,   roles: ALL },
