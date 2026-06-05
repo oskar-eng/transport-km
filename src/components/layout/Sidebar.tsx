@@ -41,8 +41,8 @@ const navGroups: { title: string | null; key: string; icon: typeof Package | nul
     { href: "/ordenes-trabajo",                            label: "Órdenes de Trabajo",  icon: ClipboardCheck, roles: ALL },
     { href: "/solicitud-materiales",                       label: "Solicitud Materiales", icon: ScrollText,   roles: ALL },
     { href: "/proximamente?m=Compras / Requerimientos",    label: "Compras",             icon: ShoppingCart,  roles: ALL },
-    { href: "/proximamente?m=Costos de Mantenimiento",     label: "Costos Mantenimiento", icon: DollarSign,   roles: ALL },
-    { href: "/proximamente?m=Reportes de Mantenimiento",   label: "Reportes Mant.",      icon: FileBarChart,  roles: ALL },
+    { href: "/costos-mantenimiento",                       label: "Costos Mantenimiento", icon: DollarSign,   roles: ALL },
+    { href: "/reportes-mantenimiento",                     label: "Reportes Mant.",      icon: FileBarChart,  roles: ALL },
   ]},
   { title: "Finanzas", key: "finanzas", icon: Wallet, items: [
     { href: "/costs",       label: "Costos",        icon: DollarSign,      roles: ALL },
