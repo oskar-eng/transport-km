@@ -172,6 +172,34 @@ model TrailerDocument {
   @@unique([trailerId, type])
 }
 
+model PurchaseOrder {
+  id            String   @id @default(cuid())
+  numero        Int
+  supplier      String
+  status        String   @default("SOLICITUD") // SOLICITUD | COTIZADO | ORDENADO | RECIBIDO | ANULADO
+  date          DateTime
+  description   String?
+  total         Float?
+  receiptUrl    String?
+  notes         String?
+  createdById   String?
+  createdByName String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  items PurchaseItem[]
+}
+
+model PurchaseItem {
+  id         String @id @default(cuid())
+  purchaseId String
+  partName   String
+  quantity   Float
+  unitCost   Float?
+
+  purchase PurchaseOrder @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+}
+
 model PreventivePlan {
   id            String    @id @default(cuid())
   unitId        String
