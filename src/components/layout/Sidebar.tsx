@@ -5,7 +5,7 @@ import { signOut, useSession } from "next-auth/react";
 import {
   LayoutDashboard, Package, Truck, Users, BarChart3, LogOut, Menu, X,
   MapPin, FileText, Fuel, Wrench, Circle, DollarSign, ChevronLeft, ChevronRight, UserRound, Receipt, AlertOctagon, History, Container, ClipboardList,
-  ChevronDown, Database, Settings, Wallet,
+  ChevronDown, Database, Settings, Wallet, ClipboardCheck, CalendarClock, Boxes, ShoppingCart, FileBarChart, AlertTriangle, ScrollText, Layers,
 } from "lucide-react";
 import { useEffect } from "react";
 import { useState } from "react";
@@ -32,6 +32,17 @@ const navGroups: { title: string | null; key: string; icon: typeof Package | nul
     { href: "/fuel",        label: "Combustible",   icon: Fuel,            roles: [...ALL, "CONDUCTOR"] },
     { href: "/maintenance", label: "Mantenimiento", icon: Wrench,          roles: ALL },
     { href: "/tires",       label: "Neumáticos",    icon: Circle,          roles: ALL },
+  ]},
+  { title: "Mantenimiento de Flota", key: "mantflota", icon: Wrench, items: [
+    { href: "/almacen",                          label: "Almacén de Repuestos",   icon: Boxes,         roles: ALL },
+    { href: "/proximamente?m=Programación Preventiva",  label: "Programación Preventiva", icon: CalendarClock, roles: ALL },
+    { href: "/proximamente?m=Plantillas de Mantenimiento", label: "Plantillas",          icon: Layers,        roles: ALL },
+    { href: "/proximamente?m=Incidencias de Conductores",  label: "Incidencias",         icon: AlertTriangle, roles: ALL },
+    { href: "/proximamente?m=Órdenes de Trabajo",          label: "Órdenes de Trabajo",  icon: ClipboardCheck, roles: ALL },
+    { href: "/proximamente?m=Solicitud de Materiales",     label: "Solicitud Materiales", icon: ScrollText,   roles: ALL },
+    { href: "/proximamente?m=Compras / Requerimientos",    label: "Compras",             icon: ShoppingCart,  roles: ALL },
+    { href: "/proximamente?m=Costos de Mantenimiento",     label: "Costos Mantenimiento", icon: DollarSign,   roles: ALL },
+    { href: "/proximamente?m=Reportes de Mantenimiento",   label: "Reportes Mant.",      icon: FileBarChart,  roles: ALL },
   ]},
   { title: "Finanzas", key: "finanzas", icon: Wallet, items: [
     { href: "/costs",       label: "Costos",        icon: DollarSign,      roles: ALL },

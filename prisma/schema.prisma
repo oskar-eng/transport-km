@@ -168,6 +168,40 @@ model TrailerDocument {
   @@unique([trailerId, type])
 }
 
+model SparePart {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  category  String?  // FILTROS | FRENOS | MOTOR | ELECTRICO | SUSPENSION | LLANTAS | OTRO
+  brand     String?  // marca compatible (Foton, Volvo, etc.)
+  unit      String   @default("UND") // unidad de medida
+  stock     Float    @default(0)
+  minStock  Float    @default(0)     // stock crítico
+  cost      Float?   // costo unitario
+  location  String?  // ubicación física
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  movements StockMovement[]
+}
+
+model StockMovement {
+  id            String   @id @default(cuid())
+  partId        String
+  type          String   // INGRESO | SALIDA
+  quantity      Float
+  reason        String?  // compra | orden de trabajo | ajuste | devolución
+  reference     String?  // Nro OT / factura
+  cost          Float?
+  balance       Float    // saldo después del movimiento (kardex)
+  createdById   String?
+  createdByName String?
+  createdAt     DateTime @default(now())
+
+  part SparePart @relation(fields: [partId], references: [id], onDelete: Cascade)
+}
+
 model Solicitud {
   id            String    @id @default(cuid())
   numero        Int
