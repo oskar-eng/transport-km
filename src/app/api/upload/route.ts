@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import crypto from "crypto";
 
-// Si hay Cloudinary configurado → usa cloud (subida sin firma con upload_preset)
+// Si hay Cloudinary configurado → usa cloud (subida firmada)
 // Si no → guarda local (desarrollo)
-const USE_CLOUDINARY = !!process.env.CLOUDINARY_CLOUD_NAME;
+const USE_CLOUDINARY = !!(
+  process.env.CLOUDINARY_CLOUD_NAME &&
+  process.env.CLOUDINARY_API_KEY &&
+  process.env.CLOUDINARY_API_SECRET
+);
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -19,15 +24,26 @@ export async function POST(req: NextRequest) {
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
 
-  /* ── CLOUDINARY (producción) ── */
+  /* ── CLOUDINARY (producción) — subida firmada ── */
   if (USE_CLOUDINARY) {
     const base64 = buffer.toString("base64");
     const dataUri = `data:${file.type};base64,${base64}`;
+    const cloudFolder = `transport-km/${folder}`;
+    const timestamp = Math.round(Date.now() / 1000);
+
+    // Firma SHA-1 de los parámetros ordenados alfabéticamente + api_secret
+    const toSign = `folder=${cloudFolder}&timestamp=${timestamp}`;
+    const signature = crypto
+      .createHash("sha1")
+      .update(toSign + process.env.CLOUDINARY_API_SECRET)
+      .digest("hex");
 
     const form = new FormData();
     form.append("file", dataUri);
-    form.append("upload_preset", "transport_km");
-    form.append("folder", `transport-km/${folder}`);
+    form.append("api_key", process.env.CLOUDINARY_API_KEY!);
+    form.append("timestamp", String(timestamp));
+    form.append("folder", cloudFolder);
+    form.append("signature", signature);
 
     // "auto" acepta imágenes Y PDFs/archivos
     const res = await fetch(
