@@ -2,13 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-// Si hay Cloudinary configurado → usa cloud
+// Si hay Cloudinary configurado → usa cloud (subida sin firma con upload_preset)
 // Si no → guarda local (desarrollo)
-const USE_CLOUDINARY = !!(
-  process.env.CLOUDINARY_CLOUD_NAME &&
-  process.env.CLOUDINARY_API_KEY &&
-  process.env.CLOUDINARY_API_SECRET
-);
+const USE_CLOUDINARY = !!process.env.CLOUDINARY_CLOUD_NAME;
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
