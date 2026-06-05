@@ -519,6 +519,7 @@ export default function OrderDetail({
             })}
           </div>
         </div>
+      </div>
      </div>
 
       {/* Mapa — lado derecho, solo en web (oculto en celular) */}
