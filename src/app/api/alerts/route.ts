@@ -80,7 +80,9 @@ export async function GET() {
     orderBy: { nextDate: "asc" },
     take: 50,
   });
+  const maintAlerted = new Set<string>();
   for (const m of maints) {
+    maintAlerted.add(m.id);
     const days = m.nextDate ? daysUntil(m.nextDate) : null;
     const detalle = m.status === "PENDIENTE" ? "pendiente"
       : m.status === "EN_PROCESO" ? "en proceso"
@@ -93,6 +95,32 @@ export async function GET() {
       severity: (days != null && days < 0) || m.status === "PENDIENTE" ? "media" : "info",
       link: `/maintenance`,
     });
+  }
+
+  /* ── 2b. Mantenimiento por kilometraje ── */
+  const KM_WINDOW = 2000; // avisar 2000 km antes
+  const odoByUnit = await prisma.fuelRecord.groupBy({ by: ["unitId"], _max: { odometer: true } });
+  const odoMap = Object.fromEntries(odoByUnit.map(o => [o.unitId, o._max.odometer ?? 0]));
+  const maintKm = await prisma.maintenanceRecord.findMany({
+    where: { nextOdometer: { not: null }, status: { not: "COMPLETADO" } },
+    include: { unit: { select: { id: true, plate: true } } },
+    take: 50,
+  });
+  for (const m of maintKm) {
+    if (maintAlerted.has(m.id)) continue;
+    const current = odoMap[m.unitId] ?? 0;
+    if (current === 0) continue;
+    const faltan = m.nextOdometer! - current;
+    if (faltan <= KM_WINDOW) {
+      alerts.push({
+        id: `mk-${m.id}`, category: "mantenimiento", icon: "wrench",
+        titulo: m.unit.plate,
+        doc: `${m.description} — ${faltan < 0 ? `pasado por ${Math.abs(faltan).toLocaleString()} km` : `faltan ${faltan.toLocaleString()} km para el service`}`,
+        fecha: (m.nextDate ?? m.date).toISOString(),
+        severity: faltan < 0 ? "media" : "info",
+        link: `/maintenance`,
+      });
+    }
   }
 
   /* ── 3. Combustible: cargas recientes + bajo rendimiento ── */
