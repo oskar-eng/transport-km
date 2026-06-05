@@ -20,6 +20,7 @@ model User {
   orders            ServiceOrder[]
   pushSubscriptions PushSubscription[]
   driverProfile     DriverProfile?
+  sanciones         Sancion[]
 }
 
 model DriverProfile {
@@ -85,6 +86,24 @@ model Unit {
   tires         Tire[]
   otherCosts    OtherCost[]
   expenses      Expense[]
+  sanciones     Sancion[]
+}
+
+model Sancion {
+  id          String    @id @default(cuid())
+  unitId      String?
+  driverId    String?   // userId del conductor
+  type        String    // PAPELETA | INFRACCION | OTRO
+  description String
+  amount      Float?
+  date        DateTime
+  status      String    @default("PENDIENTE") // PENDIENTE | PAGADA | ANULADA
+  documentUrl String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  unit   Unit? @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  driver User? @relation(fields: [driverId], references: [id], onDelete: SetNull)
 }
 
 model Expense {
