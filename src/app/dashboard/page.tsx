@@ -6,10 +6,11 @@ import AppShell from "@/components/layout/AppShell";
 import DashboardCharts from "@/components/dashboard/DashboardCharts";
 import ActiveOrdersTable from "@/components/dashboard/ActiveOrdersTable";
 import { getEvents, ROLE_LABELS } from "@/lib/events";
-import { Package, Truck, Users, MapPin, TrendingUp, Clock, CheckCircle2, AlertTriangle, FileText, Wrench } from "lucide-react";
+import { Package, Truck, Users, MapPin, TrendingUp, Clock, CheckCircle2, AlertTriangle, FileText, Wrench, ShieldCheck, DollarSign, AlertOctagon } from "lucide-react";
 import Link from "next/link";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import { es } from "date-fns/locale";
+import { unitHabilitado } from "@/lib/vehicleDocsFixed";
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions);
@@ -142,6 +143,22 @@ export default async function DashboardPage() {
     ? Math.round((unitsInService / totalUnits) * 100)
     : 0;
 
+  // ── Métricas nuevas: habilitadas, gasto del mes, sanciones ──
+  let unitsHabilitadas = 0, gastoMes = 0, sancionesPendientes = 0;
+  if (!isDriver) {
+    const [unitsWithDocs, expSum, fuelSum, maintSum, sancPend] = await Promise.all([
+      prisma.unit.findMany({ include: { unitDocuments: true } }),
+      prisma.expense.aggregate({ _sum: { amount: true }, where: { date: { gte: firstOfMonth } } }),
+      prisma.fuelRecord.aggregate({ _sum: { totalCost: true }, where: { date: { gte: firstOfMonth } } }),
+      prisma.maintenanceRecord.aggregate({ _sum: { cost: true }, where: { date: { gte: firstOfMonth } } }),
+      prisma.sancion.count({ where: { status: "PENDIENTE" } }),
+    ]);
+    unitsHabilitadas = unitsWithDocs.filter(u => unitHabilitado(u.unitDocuments.map(d => ({ type: d.type, expiryDate: d.expiryDate?.toISOString() ?? null, fileUrl: d.fileUrl })))).length;
+    gastoMes = (expSum._sum.amount ?? 0) + (fuelSum._sum.totalCost ?? 0) + (maintSum._sum.cost ?? 0);
+    sancionesPendientes = sancPend;
+  }
+  const money = (n: number) => `S/ ${n.toLocaleString("es-PE", { maximumFractionDigits: 0 })}`;
+
   // ── KPIs cards config ────────────────────────────────────────
   const kpis = isDriver
     ? [
@@ -157,6 +174,9 @@ export default async function DashboardPage() {
         { label: "Km este mes",            value: kmMes > 0 ? kmMes.toLocaleString() : "—", icon: TrendingUp, color: "bg-emerald-500", sub: "kilómetros recorridos" },
         { label: "Disponibilidad flota",   value: `${disponibilidad}%`, icon: CheckCircle2, color: "bg-green-500",  sub: "operativas vs total" },
         { label: "Utilización flota",      value: `${utilizacion}%`,     icon: MapPin,       color: "bg-orange-500", sub: "en ruta ahora" },
+        { label: "Unidades habilitadas",   value: `${unitsHabilitadas}/${totalUnits}`, icon: ShieldCheck, color: "bg-teal-500", sub: "documentos al día" },
+        { label: "Gasto del mes",          value: gastoMes > 0 ? money(gastoMes) : "—", icon: DollarSign, color: "bg-rose-500", sub: "combustible + manten. + gastos" },
+        { label: "Sanciones pendientes",   value: sancionesPendientes, icon: AlertOctagon, color: "bg-red-500", sub: "por pagar" },
       ];
 
   return (
