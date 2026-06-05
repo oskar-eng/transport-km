@@ -90,6 +90,7 @@ model Unit {
   workOrders       WorkOrder[]
   materialRequests MaterialRequest[]
   incidents        Incident[]
+  preventivePlans  PreventivePlan[]
 }
 
 model Sancion {
@@ -169,6 +170,22 @@ model TrailerDocument {
   trailer Trailer @relation(fields: [trailerId], references: [id], onDelete: Cascade)
 
   @@unique([trailerId, type])
+}
+
+model PreventivePlan {
+  id            String    @id @default(cuid())
+  unitId        String
+  maintType     String    // A | B | C
+  scheduledDate DateTime?
+  scheduledKm   Int?
+  intervalKm    Int?
+  intervalDays  Int?
+  status        String    @default("PROGRAMADO") // PROGRAMADO | REALIZADO | CANCELADO
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  unit Unit @relation(fields: [unitId], references: [id], onDelete: Cascade)
 }
 
 model MaintenanceTemplate {

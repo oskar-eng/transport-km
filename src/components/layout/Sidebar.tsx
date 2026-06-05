@@ -35,7 +35,7 @@ const navGroups: { title: string | null; key: string; icon: typeof Package | nul
   ]},
   { title: "Mantenimiento de Flota", key: "mantflota", icon: Wrench, items: [
     { href: "/almacen",                          label: "Almacén de Repuestos",   icon: Boxes,         roles: ALL },
-    { href: "/proximamente?m=Programación Preventiva",  label: "Programación Preventiva", icon: CalendarClock, roles: ALL },
+    { href: "/preventivo",                              label: "Programación Preventiva", icon: CalendarClock, roles: ALL },
     { href: "/plantillas",                                 label: "Plantillas",          icon: Layers,        roles: ALL },
     { href: "/incidencias",                                label: "Incidencias",         icon: AlertTriangle, roles: [...ALL, "CONDUCTOR"] },
     { href: "/ordenes-trabajo",                            label: "Órdenes de Trabajo",  icon: ClipboardCheck, roles: ALL },
