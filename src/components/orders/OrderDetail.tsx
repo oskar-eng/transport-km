@@ -1,10 +1,13 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { getEvents } from "@/lib/events";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { CheckCircle2, Circle, Clock, ArrowLeft, Download, Gauge, MapPin, Loader2, Share2, Check, XCircle } from "lucide-react";
+
+const OrderMap = dynamic(() => import("./OrderMapView"), { ssr: false });
 
 interface Event {
   id: string;
@@ -12,6 +15,8 @@ interface Event {
   timestamp: string;
   odometer: number | null;
   notes: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 interface Order {
   id: string;
@@ -181,6 +186,17 @@ export default function OrderDetail({
 
   const registeredMap = Object.fromEntries(localEvents.map((e) => [e.eventType, e]));
 
+  // Puntos GPS para el mapa (eventos con ubicación), ordenados por hora
+  const gpsPoints = [...localEvents]
+    .filter((e) => e.latitude != null && e.longitude != null)
+    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+    .map((e) => ({
+      lat: e.latitude as number,
+      lng: e.longitude as number,
+      label: events.find((d) => d.key === e.eventType)?.label ?? e.eventType,
+      timestamp: e.timestamp,
+    }));
+
   // Calcular km recorridos si hay odómetro en primer y último evento registrado
   const firstEvent = localEvents[0];
   const lastEvent = localEvents[localEvents.length - 1];
@@ -190,7 +206,8 @@ export default function OrderDetail({
       : null;
 
   return (
-    <div className="max-w-3xl">
+    <div className="flex gap-6 items-start">
+     <div className="flex-1 max-w-3xl min-w-0">
 
       {/* Modal cierre anticipado */}
       {showCloseModal && (
@@ -502,7 +519,26 @@ export default function OrderDetail({
             })}
           </div>
         </div>
-      </div>
+     </div>
+
+      {/* Mapa — lado derecho, solo en web (oculto en celular) */}
+      {gpsPoints.length > 0 && (
+        <div className="hidden lg:block w-[440px] shrink-0">
+          <div className="sticky top-6">
+            <div className="bg-white rounded-2xl shadow-sm p-2 h-[calc(100vh-7rem)]">
+              <div className="px-2 py-1.5 flex items-center justify-between">
+                <h2 className="font-semibold text-gray-900 text-sm flex items-center gap-1.5">
+                  <MapPin size={15} className="text-blue-700" /> Ruta del servicio
+                </h2>
+                <span className="text-xs font-mono font-bold text-blue-700">🚛 {order.unit.plate}</span>
+              </div>
+              <div className="h-[calc(100%-2.5rem)]">
+                <OrderMap gpsPoints={gpsPoints} plate={order.unit.plate} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
