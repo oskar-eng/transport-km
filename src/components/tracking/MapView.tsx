@@ -10,9 +10,11 @@ interface TrackingUnit {
   orderId: string;
   orderNumber: string;
   type: string;
+  status: string;
   clientName: string;
   driver: { name: string };
   unit: { plate: string; model: string };
+  kmRecorridos: number | null;
   lastEvent: {
     eventType: string;
     label: string;
@@ -57,22 +59,20 @@ export default function MapView({ units }: { units: TrackingUnit[] }) {
           position={[u.lastEvent.latitude, u.lastEvent.longitude]}
         >
           <Popup>
-            <div style={{ minWidth: 180 }}>
-              <p style={{ fontWeight: "bold", marginBottom: 4 }}>{u.unit.plate} — {u.unit.model}</p>
-              <p style={{ fontSize: 12, color: "#555", marginBottom: 2 }}>{u.driver.name}</p>
-              <p style={{ fontSize: 12, color: "#555", marginBottom: 4 }}>{u.clientName} · {u.orderNumber}</p>
-              <p style={{ fontSize: 12, background: "#eff6ff", color: "#1d4ed8", padding: "2px 6px", borderRadius: 4, display: "inline-block", marginBottom: 4 }}>
-                {u.lastEvent.label}
-              </p>
-              <br />
-              <span style={{ fontSize: 11, color: "#888" }}>
-                {format(new Date(u.lastEvent.timestamp), "dd/MM/yyyy HH:mm", { locale: es })}
-              </span>
-              {u.lastEvent.odometer && (
-                <span style={{ fontSize: 11, color: "#888", marginLeft: 8 }}>
-                  {u.lastEvent.odometer.toLocaleString()} km
-                </span>
-              )}
+            <div style={{ minWidth: 210, fontSize: 12, lineHeight: 1.5 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                <span style={{ fontWeight: "bold", fontSize: 14, fontFamily: "monospace" }}>{u.unit.plate}</span>
+                <span style={{ fontSize: 10, fontWeight: "bold", background: "#dcfce7", color: "#15803d", padding: "1px 6px", borderRadius: 999 }}>{u.status}</span>
+              </div>
+              <table style={{ width: "100%" }}>
+                <tbody>
+                  <tr><td style={{ color: "#888", paddingRight: 8 }}>Conductor</td><td style={{ fontWeight: 600 }}>{u.driver.name}</td></tr>
+                  <tr><td style={{ color: "#888" }}>Orden</td><td style={{ fontWeight: 600 }}>{u.orderNumber} · {u.clientName}</td></tr>
+                  <tr><td style={{ color: "#888" }}>Estatus</td><td style={{ fontWeight: 600, color: "#173a73" }}>{u.lastEvent.label}</td></tr>
+                  <tr><td style={{ color: "#888" }}>Km recorridos</td><td style={{ fontWeight: 600 }}>{u.kmRecorridos != null ? `${u.kmRecorridos.toLocaleString()} km` : "—"}</td></tr>
+                  <tr><td style={{ color: "#888" }}>Fecha/hora</td><td style={{ fontWeight: 600 }}>{format(new Date(u.lastEvent.timestamp), "dd/MM/yyyy HH:mm", { locale: es })}</td></tr>
+                </tbody>
+              </table>
             </div>
           </Popup>
         </Marker>

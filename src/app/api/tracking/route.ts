@@ -17,27 +17,31 @@ export async function GET() {
     include: {
       driver: { select: { id: true, name: true } },
       unit: { select: { plate: true, model: true } },
-      events: {
-        where: { latitude: { not: null } },
-        orderBy: { timestamp: "desc" },
-        take: 1,
-      },
+      events: { orderBy: { timestamp: "asc" } },
     },
   });
 
   const units = activeOrders
-    .filter((order) => order.events.length > 0)
     .map((order) => {
-      const lastEvent = order.events[0];
+      const gpsEvents = order.events.filter((e) => e.latitude != null && e.longitude != null);
+      if (gpsEvents.length === 0) return null;
+      const lastEvent = gpsEvents[gpsEvents.length - 1];
+
+      // km recorridos en este servicio: último odómetro − primer odómetro
+      const odos = order.events.filter((e) => e.odometer != null).map((e) => e.odometer as number);
+      const kmRecorridos = odos.length >= 2 ? Math.max(...odos) - Math.min(...odos) : null;
+
       const eventDefs = getEvents(order.type);
       const label = eventDefs.find((e) => e.key === lastEvent.eventType)?.label ?? lastEvent.eventType;
       return {
         orderId: order.id,
         orderNumber: order.orderNumber,
         type: order.type,
+        status: order.status,
         clientName: order.clientName,
         driver: { name: order.driver.name },
         unit: { plate: order.unit.plate, model: order.unit.model },
+        kmRecorridos,
         lastEvent: {
           eventType: lastEvent.eventType,
           label,
@@ -47,7 +51,8 @@ export async function GET() {
           longitude: lastEvent.longitude as number,
         },
       };
-    });
+    })
+    .filter((u) => u !== null);
 
   return NextResponse.json(units);
 }

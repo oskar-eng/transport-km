@@ -8,9 +8,11 @@ interface TrackingUnit {
   orderId: string;
   orderNumber: string;
   type: string;
+  status: string;
   clientName: string;
   driver: { name: string };
   unit: { plate: string; model: string };
+  kmRecorridos: number | null;
   lastEvent: {
     eventType: string;
     label: string;
@@ -83,18 +85,20 @@ export default function TrackingMap() {
       {units.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {units.map((u) => (
-            <div key={u.orderId} className="bg-white rounded-xl shadow-sm p-4 text-sm border-l-4 border-blue-500">
-              <div className="flex justify-between items-start mb-1">
-                <p className="font-bold text-gray-900">{u.unit.plate}</p>
-                <span className="text-xs text-gray-400">{u.orderNumber}</span>
+            <div key={u.orderId} className="bg-white rounded-xl shadow-sm p-4 text-sm border-l-4 border-blue-700">
+              <div className="flex justify-between items-start mb-2">
+                <div className="flex items-center gap-2">
+                  <p className="font-bold text-gray-900 font-mono text-base">{u.unit.plate}</p>
+                  <span className="text-xs text-gray-400">{u.unit.model}</span>
+                </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">{u.status}</span>
               </div>
-              <p className="text-xs text-gray-500 mb-1">{u.driver.name} · {u.clientName}</p>
-              <p className="text-xs font-medium text-blue-700 bg-blue-50 rounded px-2 py-0.5 inline-block">
-                {u.lastEvent.label}
-              </p>
-              <div className="flex justify-between mt-2 text-xs text-gray-400">
-                <span>{format(new Date(u.lastEvent.timestamp), "dd/MM HH:mm", { locale: es })}</span>
-                {u.lastEvent.odometer && <span>{u.lastEvent.odometer.toLocaleString()} km</span>}
+              <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+                <div><span className="text-gray-400">Conductor</span><p className="font-medium text-gray-800">{u.driver.name}</p></div>
+                <div><span className="text-gray-400">Orden</span><p className="font-medium text-gray-800">{u.orderNumber} · {u.clientName}</p></div>
+                <div><span className="text-gray-400">Estatus</span><p className="font-medium text-blue-700">{u.lastEvent.label}</p></div>
+                <div><span className="text-gray-400">Km recorridos</span><p className="font-medium text-gray-800">{u.kmRecorridos != null ? `${u.kmRecorridos.toLocaleString()} km` : "—"}</p></div>
+                <div className="col-span-2"><span className="text-gray-400">Última actualización</span><p className="font-medium text-gray-800">{format(new Date(u.lastEvent.timestamp), "dd/MM/yyyy HH:mm", { locale: es })}</p></div>
               </div>
             </div>
           ))}
