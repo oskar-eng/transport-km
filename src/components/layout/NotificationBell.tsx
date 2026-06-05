@@ -1,40 +1,60 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Bell, AlertTriangle, Clock, Truck, UserRound, CheckCircle2 } from "lucide-react";
+import { Bell, Truck, UserRound, Fuel, Wrench, CheckCircle2, FileText } from "lucide-react";
 
 interface Alert {
-  id: string; kind: "driver" | "unit"; titulo: string; doc: string;
-  expiryDate: string; days: number; severity: "vencido" | "por_vencer"; link: string;
+  id: string;
+  category: "documento" | "combustible" | "mantenimiento";
+  icon: "driver" | "unit" | "fuel" | "wrench";
+  titulo: string; doc: string; fecha: string;
+  severity: "alta" | "media" | "info"; link: string;
+}
+interface Data {
+  total: number;
+  porCategoria: { documento: number; combustible: number; mantenimiento: number };
+  alerts: Alert[];
+}
+
+const TABS = [
+  { key: "todos",         label: "Todos" },
+  { key: "documento",     label: "Documentos" },
+  { key: "combustible",   label: "Combustible" },
+  { key: "mantenimiento", label: "Mantenimiento" },
+] as const;
+
+const ICONS = { driver: UserRound, unit: Truck, fuel: Fuel, wrench: Wrench };
+
+function sevColor(s: Alert["severity"]) {
+  if (s === "alta")  return { bg: "bg-red-100",   text: "text-red-600",   dot: "bg-red-500" };
+  if (s === "media") return { bg: "bg-amber-100", text: "text-amber-600", dot: "bg-amber-500" };
+  return                     { bg: "bg-blue-100",  text: "text-blue-600",  dot: "bg-blue-400" };
 }
 
 export default function NotificationBell() {
   const [open, setOpen] = useState(false);
-  const [data, setData] = useState<{ total: number; vencidos: number; porVencer: number; alerts: Alert[] } | null>(null);
+  const [data, setData] = useState<Data | null>(null);
+  const [tab, setTab] = useState<typeof TABS[number]["key"]>("todos");
   const ref = useRef<HTMLDivElement>(null);
 
   async function load() {
-    try {
-      const res = await fetch("/api/alerts");
-      if (res.ok) setData(await res.json());
-    } catch { /* ignore */ }
+    try { const res = await fetch("/api/alerts"); if (res.ok) setData(await res.json()); } catch { /* ignore */ }
   }
 
   useEffect(() => {
     load();
-    const t = setInterval(load, 5 * 60 * 1000); // refresca cada 5 min
+    const t = setInterval(load, 5 * 60 * 1000);
     return () => clearInterval(t);
   }, []);
 
   useEffect(() => {
-    function onClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
+    function onClick(e: MouseEvent) { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); }
     document.addEventListener("mousedown", onClick);
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
   const total = data?.total ?? 0;
+  const filtered = data ? (tab === "todos" ? data.alerts : data.alerts.filter(a => a.category === tab)) : [];
 
   return (
     <div className="relative" ref={ref}>
@@ -50,45 +70,49 @@ export default function NotificationBell() {
 
       {open && (
         <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-xl shadow-2xl border border-gray-100 z-50 overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-            <h3 className="font-bold text-gray-900 text-sm">Notificaciones</h3>
-            {data && total > 0 && (
-              <div className="flex gap-2 text-xs">
-                {data.vencidos > 0 && <span className="bg-red-100 text-red-700 px-2 py-0.5 rounded-full font-medium">{data.vencidos} vencidos</span>}
-                {data.porVencer > 0 && <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-medium">{data.porVencer} por vencer</span>}
-              </div>
-            )}
+          <div className="px-4 py-3 border-b border-gray-100">
+            <h3 className="font-bold text-gray-900 text-sm mb-2">Notificaciones</h3>
+            {/* Tabs por categoría */}
+            <div className="flex gap-1 bg-gray-100 p-0.5 rounded-lg">
+              {TABS.map(t => {
+                const count = t.key === "todos" ? total : data?.porCategoria[t.key as keyof Data["porCategoria"]] ?? 0;
+                return (
+                  <button key={t.key} onClick={() => setTab(t.key)}
+                    className={`flex-1 px-1.5 py-1 rounded-md text-[11px] font-medium transition-colors ${tab === t.key ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>
+                    {t.label}{count > 0 && <span className="ml-0.5 text-gray-400">({count})</span>}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <div className="max-h-96 overflow-y-auto">
             {!data ? (
               <p className="px-4 py-8 text-center text-sm text-gray-400">Cargando…</p>
-            ) : total === 0 ? (
+            ) : filtered.length === 0 ? (
               <div className="px-4 py-10 text-center">
                 <CheckCircle2 size={32} className="mx-auto mb-2 text-green-400" />
-                <p className="text-sm text-gray-500">¡Todo al día!</p>
-                <p className="text-xs text-gray-400 mt-0.5">No hay documentos por vencer</p>
+                <p className="text-sm text-gray-500">¡Sin pendientes!</p>
+                <p className="text-xs text-gray-400 mt-0.5">No hay notificaciones en esta categoría</p>
               </div>
             ) : (
-              data.alerts.map(a => (
-                <Link key={`${a.kind}-${a.id}`} href={a.link} onClick={() => setOpen(false)}
-                  className="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 border-b border-gray-50 transition-colors">
-                  <div className={`p-1.5 rounded-lg shrink-0 ${a.severity === "vencido" ? "bg-red-100" : "bg-amber-100"}`}>
-                    {a.kind === "driver"
-                      ? <UserRound size={15} className={a.severity === "vencido" ? "text-red-600" : "text-amber-600"} />
-                      : <Truck size={15} className={a.severity === "vencido" ? "text-red-600" : "text-amber-600"} />}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-gray-800 truncate">{a.titulo}</p>
-                    <p className="text-xs text-gray-500 truncate">{a.doc}</p>
-                    <p className={`text-xs font-medium mt-0.5 flex items-center gap-1 ${a.severity === "vencido" ? "text-red-600" : "text-amber-600"}`}>
-                      {a.severity === "vencido"
-                        ? <><AlertTriangle size={11} /> Vencido hace {Math.abs(a.days)} día{Math.abs(a.days) !== 1 ? "s" : ""}</>
-                        : <><Clock size={11} /> Vence en {a.days} día{a.days !== 1 ? "s" : ""}</>}
-                    </p>
-                  </div>
-                </Link>
-              ))
+              filtered.map(a => {
+                const Icon = ICONS[a.icon] ?? FileText;
+                const c = sevColor(a.severity);
+                return (
+                  <Link key={a.id} href={a.link} onClick={() => setOpen(false)}
+                    className="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 border-b border-gray-50 transition-colors">
+                    <div className={`p-1.5 rounded-lg shrink-0 ${c.bg}`}>
+                      <Icon size={15} className={c.text} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-gray-800 truncate">{a.titulo}</p>
+                      <p className="text-xs text-gray-500 line-clamp-2">{a.doc}</p>
+                    </div>
+                    <span className={`w-2 h-2 rounded-full shrink-0 mt-1.5 ${c.dot}`} />
+                  </Link>
+                );
+              })
             )}
           </div>
         </div>
