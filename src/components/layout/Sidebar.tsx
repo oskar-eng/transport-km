@@ -9,6 +9,7 @@ import {
 import { useState } from "react";
 import { ROLE_LABELS } from "@/lib/events";
 import PushManager from "@/components/PushManager";
+import Logo from "./Logo";
 
 const navItems = [
   { href: "/dashboard",   label: "Dashboard",     icon: LayoutDashboard, roles: ["all"] },
@@ -48,16 +49,17 @@ export default function Sidebar({ collapsed, onToggle }: Props) {
       {/* Header */}
       <div className={`flex items-center border-b border-blue-700 transition-all duration-300 ${collapsed && !isMobile ? "p-3 justify-center" : "p-4 justify-between"}`}>
         {(!collapsed || isMobile) && (
-          <div className="flex items-center gap-2 min-w-0">
-            <Truck className="text-white shrink-0" size={22} />
-            <div className="min-w-0">
-              <p className="text-white font-bold text-sm leading-tight truncate">Yacz Cargo</p>
-              <p className="text-blue-200 text-xs truncate">Gestión de Flotas</p>
-            </div>
+          <div className="min-w-0">
+            <Logo variant="onDark" size="sm" />
+            <p className="text-blue-200 text-[11px] mt-1 ml-6 truncate">Gestión de Flotas</p>
           </div>
         )}
         {collapsed && !isMobile && (
-          <Truck className="text-white" size={22} />
+          <div className="flex flex-col gap-[2px]">
+            <span className="block w-3 h-[2px] rounded-full bg-red-500" />
+            <span className="block w-2.5 h-[2px] rounded-full bg-red-500" />
+            <span className="block w-3 h-[2px] rounded-full bg-red-500" />
+          </div>
         )}
         {/* Desktop collapse toggle */}
         {!isMobile && (

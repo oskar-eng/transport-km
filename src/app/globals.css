@@ -12,6 +12,17 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* ── Paleta de marca Yacz Cargo (azul marino + rojo) ──
+   Reemplaza los azules primarios por el azul marino de la marca.
+   Todo el proyecto usa blue-700/800/900 como color principal. */
+@theme {
+  --color-blue-900: #0f2a5c;
+  --color-blue-800: #173a73;  /* azul marino principal de la marca */
+  --color-blue-700: #1f4a8f;  /* hover */
+  --color-brand:     #173a73;
+  --color-brand-red: #e1232a;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
