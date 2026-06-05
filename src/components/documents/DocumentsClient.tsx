@@ -13,6 +13,10 @@ const DOC_TYPES: Record<string, string> = {
   OTRO:             "Otro",
 };
 
+function isPdf(url: string) {
+  return /\.pdf($|\?)/i.test(url) || url.includes("/raw/");
+}
+
 function calcStatus(expiryDate: string) {
   const now = new Date();
   const exp = new Date(expiryDate);
@@ -41,6 +45,7 @@ export default function DocumentsClient({ docs: initial, units, userRole }: { do
   const [filterStatus, setFilterStatus] = useState("TODOS");
   const [filterUnit, setFilterUnit]     = useState("TODOS");
   const [uploading, setUploading] = useState(false);
+  const [preview, setPreview] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const canEdit = ["ADMINISTRADOR", "JEFE_TRANSPORTE", "SUPERVISOR"].includes(userRole);
@@ -222,10 +227,10 @@ export default function DocumentsClient({ docs: initial, units, userRole }: { do
                         <p className="font-medium text-gray-800">{d.name}</p>
                         {d.notes && <p className="text-xs text-gray-400 truncate max-w-48">{d.notes}</p>}
                         {d.fileUrl && (
-                          <a href={d.fileUrl} target="_blank" rel="noopener noreferrer"
+                          <button type="button" onClick={() => setPreview(d.fileUrl)}
                             className="text-xs text-blue-600 hover:underline flex items-center gap-1 mt-0.5">
                             <FileText size={10} /> Ver archivo
-                          </a>
+                          </button>
                         )}
                       </td>
                       <td className="px-4 py-3 text-gray-500 text-xs">
@@ -309,14 +314,25 @@ export default function DocumentsClient({ docs: initial, units, userRole }: { do
               <div className="col-span-2">
                 <label className="text-xs font-semibold text-gray-700 block mb-1">Archivo del documento (PDF o imagen)</label>
                 {form.fileUrl ? (
-                  <div className="flex items-center gap-2 border border-green-200 bg-green-50 rounded-lg px-3 py-2">
-                    <FileText size={16} className="text-green-600 shrink-0" />
+                  <div className="border border-green-200 bg-green-50 rounded-lg p-2">
+                    <div className="flex items-center gap-2 mb-2">
+                      <CheckCircle2 size={16} className="text-green-600 shrink-0" />
+                      <span className="text-sm text-green-700 font-medium flex-1">Archivo cargado ✓</span>
+                      <button type="button" onClick={() => set("fileUrl", "")}
+                        className="text-gray-400 hover:text-red-600 shrink-0"><X size={16} /></button>
+                    </div>
+                    {/* Vista previa: imagen o PDF */}
+                    {isPdf(form.fileUrl) ? (
+                      <iframe src={form.fileUrl} className="w-full h-64 rounded-lg border border-gray-200 bg-white" title="Vista previa del documento" />
+                    ) : (
+                      <a href={form.fileUrl} target="_blank" rel="noopener noreferrer">
+                        <img src={form.fileUrl} alt="Vista previa" className="w-full max-h-64 object-contain rounded-lg border border-gray-200 bg-white" />
+                      </a>
+                    )}
                     <a href={form.fileUrl} target="_blank" rel="noopener noreferrer"
-                      className="text-sm text-green-700 font-medium hover:underline truncate flex-1">
-                      Archivo cargado ✓ — Ver
+                      className="mt-2 inline-flex items-center gap-1 text-xs text-blue-600 hover:underline">
+                      <FileText size={12} /> Abrir en pantalla completa
                     </a>
-                    <button type="button" onClick={() => set("fileUrl", "")}
-                      className="text-gray-400 hover:text-red-600 shrink-0"><X size={16} /></button>
                   </div>
                 ) : (
                   <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
@@ -347,6 +363,31 @@ export default function DocumentsClient({ docs: initial, units, userRole }: { do
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Modal de vista previa del documento */}
+      {preview && (
+        <div className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-4" onClick={() => setPreview(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[92vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
+              <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                <FileText size={18} className="text-blue-600" /> Vista previa del documento
+              </h2>
+              <div className="flex items-center gap-2">
+                <a href={preview} target="_blank" rel="noopener noreferrer"
+                  className="text-xs text-blue-600 hover:underline">Abrir en pestaña nueva</a>
+                <button onClick={() => setPreview(null)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto p-4 bg-gray-50 flex items-center justify-center">
+              {isPdf(preview) ? (
+                <iframe src={preview} className="w-full h-[75vh] rounded-lg border border-gray-200 bg-white" title="Documento" />
+              ) : (
+                <img src={preview} alt="Documento" className="max-w-full max-h-[75vh] object-contain rounded-lg" />
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>
