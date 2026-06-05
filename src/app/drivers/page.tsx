@@ -14,7 +14,7 @@ export default async function DriversPage() {
   const conductors = await prisma.user.findMany({
     where: { role: "CONDUCTOR" },
     include: {
-      driverProfile: true,
+      driverProfile: { include: { documents: true } },
       orders: {
         where: { status: "ACTIVO" },
         include: { unit: { select: { id: true, plate: true, model: true } } },
@@ -37,6 +37,11 @@ export default async function DriversPage() {
       createdAt:     c.driverProfile.createdAt.toISOString(),
       updatedAt:     c.driverProfile.updatedAt.toISOString(),
     } : null,
+    documents: (c.driverProfile?.documents ?? []).map(d => ({
+      type:       d.type,
+      expiryDate: d.expiryDate?.toISOString() ?? null,
+      fileUrl:    d.fileUrl,
+    })),
     activeUnit: c.orders[0]?.unit ?? null,
   }));
 

@@ -34,11 +34,27 @@ model DriverProfile {
   phone           String?
   joinDate        DateTime?
   status          String    @default("ACTIVO") // ACTIVO | INACTIVO | SUSPENDIDO
+  driverType      String?   // CAMION | OTRO
   photoUrl        String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  user User @relation(fields: [userId], references: [id])
+  user      User             @relation(fields: [userId], references: [id])
+  documents DriverDocument[]
+}
+
+model DriverDocument {
+  id         String    @id @default(cuid())
+  driverId   String
+  type       String    // DNI | LICENCIA | PBIP | ANT_POLICIALES | ANT_PENALES | SCTR
+  expiryDate DateTime?
+  fileUrl    String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  driver DriverProfile @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  @@unique([driverId, type])
 }
 
 model Unit {

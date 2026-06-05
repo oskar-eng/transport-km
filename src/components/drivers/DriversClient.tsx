@@ -2,9 +2,11 @@
 import { useState, useRef } from "react";
 import {
   UserRound, Plus, Pencil, X, Camera, ImageOff,
-  Phone, Mail, Truck, AlertTriangle, CheckCircle2, Clock,
+  Phone, Mail, Truck, AlertTriangle, CheckCircle2, Clock, ExternalLink,
 } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
+import { driverHabilitado, type DriverDoc } from "@/lib/driverDocs";
 
 interface DriverProfile {
   id: string; userId: string; dni: string;
@@ -17,6 +19,7 @@ interface ActiveUnit { id: string; plate: string; model: string; }
 interface Driver {
   id: string; name: string; email: string; active: boolean;
   profile: DriverProfile | null;
+  documents: DriverDoc[];
   activeUnit: ActiveUnit | null;
 }
 
@@ -191,7 +194,7 @@ export default function DriversClient({ drivers: initial, userRole }: { drivers:
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
-                {["Conductor","DNI","Licencia","Categoría","Vence","Celular","Estado","Unidad asignada",""].map(h => (
+                {["Conductor","DNI","Licencia","Categoría","Vence","Celular","Habilitado","Unidad asignada",""].map(h => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">{h}</th>
                 ))}
               </tr>
@@ -238,8 +241,10 @@ export default function DriversClient({ drivers: initial, userRole }: { drivers:
                     </td>
                     <td className="px-4 py-3 text-gray-600">{p?.phone ?? "—"}</td>
                     <td className="px-4 py-3">
-                      {statusCfg
-                        ? <span className={`text-xs px-2 py-0.5 rounded-full font-medium border ${statusCfg.color}`}>{statusCfg.label}</span>
+                      {p
+                        ? (driverHabilitado(d.documents)
+                            ? <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-green-500 text-white">Habilitado</span>
+                            : <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-red-500 text-white">Inhabilitado</span>)
                         : <span className="text-xs text-gray-300 italic">sin perfil</span>}
                     </td>
                     <td className="px-4 py-3">
@@ -248,11 +253,10 @@ export default function DriversClient({ drivers: initial, userRole }: { drivers:
                         : <span className="text-gray-300 text-xs">—</span>}
                     </td>
                     <td className="px-4 py-3">
-                      {canEdit && (
-                        <button onClick={() => openEdit(d)} className="text-gray-400 hover:text-blue-600 transition-colors p-1">
-                          <Pencil size={14} />
-                        </button>
-                      )}
+                      <Link href={`/drivers/${d.id}`}
+                        className="flex items-center gap-1 text-xs text-blue-600 hover:underline whitespace-nowrap">
+                        <ExternalLink size={13} /> Gestionar
+                      </Link>
                     </td>
                   </tr>
                 );

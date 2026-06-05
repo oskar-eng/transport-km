@@ -62,6 +62,7 @@ export async function POST(req: NextRequest) {
       phone:           body.phone  || null,
       joinDate:        body.joinDate ? new Date(body.joinDate) : null,
       status:          body.status ?? "ACTIVO",
+      driverType:      body.driverType || null,
       photoUrl:        body.photoUrl || null,
     },
     update: {
@@ -74,6 +75,7 @@ export async function POST(req: NextRequest) {
       phone:           body.phone  || null,
       joinDate:        body.joinDate ? new Date(body.joinDate) : null,
       status:          body.status ?? "ACTIVO",
+      driverType:      body.driverType || null,
       photoUrl:        body.photoUrl || null,
     },
   });
