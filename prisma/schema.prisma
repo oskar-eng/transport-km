@@ -136,6 +136,56 @@ model UnitDocument {
   @@unique([unitId, type])
 }
 
+model Trailer {
+  id            String    @id @default(cuid())
+  plate         String    @unique
+  length        Float?    // Longitud (m)
+  equipmentType String?   // Equipment Type (20 | 40 | otro)
+  year          Int
+  axles         Int?
+  tare          Float?    // Tara (kg)
+  localType     String?   // Puerto/Deposito | otro
+  status        String    @default("DISPONIBLE")
+  photoUrl      String?
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  documents TrailerDocument[]
+}
+
+model TrailerDocument {
+  id         String    @id @default(cuid())
+  trailerId  String
+  type       String    // TARJETA_PROPIEDAD | HABILITACION | REVISION_TECNICA | POLIZA
+  expiryDate DateTime?
+  fileUrl    String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  trailer Trailer @relation(fields: [trailerId], references: [id], onDelete: Cascade)
+
+  @@unique([trailerId, type])
+}
+
+model Solicitud {
+  id            String    @id @default(cuid())
+  numero        Int
+  tipo          String    // MODIFICACION | ASOCIACION
+  entidad       String    // CHOFER | CAMION | CARRETA
+  docOrPlate    String    // Nro Doc / Placa
+  entityName    String?   // nombre del conductor o modelo
+  localType     String?
+  docType       String?   // documento subido (Licencia, SOAT, etc.)
+  fileUrl       String?
+  expiryDate    DateTime?
+  estado        String    @default("APROBADA") // APROBADA | PENDIENTE | RECHAZADA
+  createdById   String?
+  createdByName String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
 model ServiceOrder {
   id              String   @id @default(cuid())
   orderNumber     String   @unique

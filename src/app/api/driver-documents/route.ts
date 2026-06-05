@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { createSolicitud } from "@/lib/createSolicitud";
+import { DRIVER_DOC_TYPES } from "@/lib/driverDocs";
 
 // POST — crear/actualizar un documento del conductor (upsert por driverId + type)
 export async function POST(req: NextRequest) {
@@ -30,6 +32,19 @@ export async function POST(req: NextRequest) {
       fileUrl:    body.fileUrl || null,
     },
   });
+
+  // Registrar solicitud (historial) si se adjuntó archivo
+  if (body.fileUrl) {
+    const me = session.user as { id: string; name: string };
+    const profile = await prisma.driverProfile.findUnique({ where: { id: body.driverId }, select: { dni: true, firstName: true, lastName: true } });
+    const label = DRIVER_DOC_TYPES.find(t => t.key === body.type)?.label ?? body.type;
+    await createSolicitud({
+      entidad: "CHOFER", docOrPlate: profile?.dni ?? "—",
+      entityName: profile ? `${profile.firstName} ${profile.lastName}` : null,
+      docType: label, fileUrl: body.fileUrl, expiryDate: body.expiryDate || null,
+      userId: me.id, userName: me.name,
+    });
+  }
 
   return NextResponse.json({
     ...doc,
