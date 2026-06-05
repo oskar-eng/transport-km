@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Plus, Pencil, UserCheck, UserX } from "lucide-react";
+import { Plus, Pencil, UserCheck, UserX, Trash2 } from "lucide-react";
 import { ROLE_LABELS } from "@/lib/events";
 
 interface User {
@@ -34,6 +34,17 @@ export default function UsersClient({ users: initial }: { users: User[] }) {
     setEditing(u);
     setForm({ name: u.name, email: u.email, password: "", role: u.role, active: u.active });
     setShowForm(true);
+  }
+
+  async function handleDelete(u: User) {
+    if (!confirm(`¿Eliminar al usuario "${u.name}"? Esta acción no se puede deshacer.`)) return;
+    const res = await fetch(`/api/users/${u.id}`, { method: "DELETE" });
+    if (res.ok) {
+      setUsers((prev) => prev.filter((x) => x.id !== u.id));
+    } else {
+      const data = await res.json();
+      alert(data.error ?? "No se pudo eliminar el usuario");
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -156,9 +167,14 @@ export default function UsersClient({ users: initial }: { users: User[] }) {
                   )}
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <button onClick={() => openEdit(u)} className="text-gray-400 hover:text-blue-600 p-1">
-                    <Pencil size={14} />
-                  </button>
+                  <div className="flex items-center justify-end gap-1">
+                    <button onClick={() => openEdit(u)} className="text-gray-400 hover:text-blue-600 p-1.5 rounded-lg hover:bg-blue-50" title="Editar">
+                      <Pencil size={14} />
+                    </button>
+                    <button onClick={() => handleDelete(u)} className="text-gray-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50" title="Eliminar">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
