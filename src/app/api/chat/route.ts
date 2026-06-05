@@ -6,7 +6,7 @@ import { unitHabilitado } from "@/lib/vehicleDocsFixed";
 import { driverHabilitado } from "@/lib/driverDocs";
 
 // Modelo gratuito y rápido de Google Gemini
-const GEMINI_MODEL = "gemini-2.0-flash";
+const GEMINI_MODEL = "gemini-2.5-flash";
 
 const STATUS_LABELS: Record<string, string> = {
   DISPONIBLE: "Operativo", EN_SERVICIO: "En Servicio",
