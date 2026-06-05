@@ -5,7 +5,9 @@ import { signOut, useSession } from "next-auth/react";
 import {
   LayoutDashboard, Package, Truck, Users, BarChart3, LogOut, Menu, X,
   MapPin, FileText, Fuel, Wrench, Circle, DollarSign, ChevronLeft, ChevronRight, UserRound, Receipt, AlertOctagon, History, Container, ClipboardList,
+  ChevronDown, Database, Settings, Wallet,
 } from "lucide-react";
+import { useEffect } from "react";
 import { useState } from "react";
 import { ROLE_LABELS } from "@/lib/events";
 import PushManager from "@/components/PushManager";
@@ -13,30 +15,30 @@ import Logo from "./Logo";
 
 const ALL = ["ADMINISTRADOR", "JEFE_TRANSPORTE", "SUPERVISOR", "ANALISTA"];
 
-const navGroups: { title: string | null; items: { href: string; label: string; icon: typeof Package; roles: string[] }[] }[] = [
-  { title: null, items: [
+const navGroups: { title: string | null; key: string; icon: typeof Package | null; items: { href: string; label: string; icon: typeof Package; roles: string[] }[] }[] = [
+  { title: null, key: "", icon: null, items: [
     { href: "/dashboard",   label: "Dashboard",     icon: LayoutDashboard, roles: ["all"] },
     { href: "/orders",      label: "Órdenes",       icon: Package,         roles: ["all"] },
     { href: "/tracking",    label: "Seguimiento",   icon: MapPin,          roles: ["ADMINISTRADOR", "JEFE_TRANSPORTE", "SUPERVISOR"] },
   ]},
-  { title: "Actualización de Datos", items: [
+  { title: "Actualización de Datos", key: "datos", icon: Database, items: [
     { href: "/units",       label: "Vehículos",     icon: Truck,           roles: ALL },
     { href: "/drivers",     label: "Conductores",   icon: UserRound,       roles: ALL },
     { href: "/carretas",    label: "Carretas",      icon: Container,       roles: ALL },
     { href: "/solicitudes", label: "Solicitudes",   icon: ClipboardList,   roles: ALL },
   ]},
-  { title: "Operación", items: [
+  { title: "Operación", key: "operacion", icon: Settings, items: [
     { href: "/documents",   label: "Documentos",    icon: FileText,        roles: ALL },
     { href: "/fuel",        label: "Combustible",   icon: Fuel,            roles: [...ALL, "CONDUCTOR"] },
     { href: "/maintenance", label: "Mantenimiento", icon: Wrench,          roles: ALL },
     { href: "/tires",       label: "Neumáticos",    icon: Circle,          roles: ALL },
   ]},
-  { title: "Finanzas", items: [
+  { title: "Finanzas", key: "finanzas", icon: Wallet, items: [
     { href: "/costs",       label: "Costos",        icon: DollarSign,      roles: ALL },
     { href: "/gastos",      label: "Gastos",        icon: Receipt,         roles: [...ALL, "CONDUCTOR"] },
     { href: "/sanciones",   label: "Sanciones",     icon: AlertOctagon,    roles: ALL },
   ]},
-  { title: null, items: [
+  { title: null, key: "", icon: null, items: [
     { href: "/bitacora",    label: "Bitácora",      icon: History,         roles: ALL },
     { href: "/reports",     label: "Reportes",      icon: BarChart3,       roles: ALL },
     { href: "/users",       label: "Usuarios",      icon: Users,           roles: ["ADMINISTRADOR"] },
@@ -57,6 +59,14 @@ export default function Sidebar({ collapsed, onToggle }: Props) {
   const visibleGroups = navGroups
     .map((g) => ({ ...g, items: g.items.filter((i) => i.roles[0] === "all" || i.roles.includes(role)) }))
     .filter((g) => g.items.length > 0);
+
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  // Expandir automáticamente el grupo que contiene la ruta activa
+  useEffect(() => {
+    const g = navGroups.find((gr) => gr.title && gr.items.some((i) => pathname.startsWith(i.href)));
+    if (g) setExpanded((prev) => ({ ...prev, [g.key]: true }));
+  }, [pathname]);
+  const toggleGroup = (key: string) => setExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
 
   const NavContent = ({ isMobile = false }: { isMobile?: boolean }) => (
     <div className="flex flex-col h-full">
@@ -89,39 +99,90 @@ export default function Sidebar({ collapsed, onToggle }: Props) {
 
       {/* Nav items */}
       <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
-        {visibleGroups.map((group, gi) => (
-          <div key={gi} className={gi > 0 ? "mt-2" : ""}>
-            {group.title && (!collapsed || isMobile) && (
-              <p className="px-3 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-blue-300/70">{group.title}</p>
-            )}
-            {group.title && collapsed && !isMobile && gi > 0 && (
-              <div className="mx-2 my-1.5 border-t border-blue-700/60" />
-            )}
-            {group.items.map((item) => {
-              const Icon = item.icon;
-              const active = pathname.startsWith(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setMobileOpen(false)}
-                  title={collapsed && !isMobile ? item.label : undefined}
-                  className={`flex items-center gap-3 rounded-lg text-sm transition-colors group relative
-                    ${collapsed && !isMobile ? "px-0 py-2.5 justify-center" : "px-3 py-2.5"}
-                    ${active ? "bg-white text-blue-700 font-semibold" : "text-blue-100 hover:bg-blue-700"}`}
-                >
-                  <Icon size={18} className="shrink-0" />
-                  {(!collapsed || isMobile) && <span className="truncate">{item.label}</span>}
-                  {collapsed && !isMobile && (
-                    <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50">
-                      {item.label}
-                    </span>
-                  )}
-                </Link>
-              );
-            })}
-          </div>
-        ))}
+        {visibleGroups.map((group, gi) => {
+          const iconMini = collapsed && !isMobile;
+
+          // ── Grupo plano (sin título) ──
+          if (!group.title) {
+            return (
+              <div key={gi} className={gi > 0 ? "mt-1" : ""}>
+                {group.items.map((item) => {
+                  const Icon = item.icon;
+                  const active = pathname.startsWith(item.href);
+                  return (
+                    <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)}
+                      title={iconMini ? item.label : undefined}
+                      className={`flex items-center gap-3 rounded-lg text-sm transition-colors group relative
+                        ${iconMini ? "px-0 py-2.5 justify-center" : "px-3 py-2.5"}
+                        ${active ? "bg-white text-blue-700 font-semibold" : "text-blue-100 hover:bg-blue-700"}`}>
+                      <Icon size={18} className="shrink-0" />
+                      {!iconMini && <span className="truncate">{item.label}</span>}
+                      {iconMini && (
+                        <span className="absolute left-full ml-2 px-2 py-1 bg-gray-900 text-white text-xs rounded-md whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50">{item.label}</span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            );
+          }
+
+          const ParentIcon = group.icon!;
+          const groupActive = group.items.some((i) => pathname.startsWith(i.href));
+          const isExpanded = !!expanded[group.key];
+
+          // ── Sidebar colapsado: ícono + flyout al pasar el mouse ──
+          if (iconMini) {
+            return (
+              <div key={gi} className="relative group mt-1">
+                <div className={`flex items-center justify-center px-0 py-2.5 rounded-lg cursor-default ${groupActive ? "bg-blue-700 text-white" : "text-blue-100 group-hover:bg-blue-700"}`}>
+                  <ParentIcon size={18} />
+                </div>
+                <div className="absolute left-full top-0 ml-2 hidden group-hover:block z-50">
+                  <div className="bg-blue-800 rounded-lg shadow-2xl py-1.5 min-w-[190px] border border-blue-700">
+                    <p className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-blue-300/70">{group.title}</p>
+                    {group.items.map((item) => {
+                      const Icon = item.icon;
+                      const active = pathname.startsWith(item.href);
+                      return (
+                        <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)}
+                          className={`flex items-center gap-2.5 px-3 py-2 text-sm ${active ? "bg-white text-blue-700 font-semibold" : "text-blue-100 hover:bg-blue-700"}`}>
+                          <Icon size={15} className="shrink-0" /> <span className="truncate">{item.label}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          // ── Sidebar expandido: acordeón desplegable ──
+          return (
+            <div key={gi} className="mt-1">
+              <button onClick={() => toggleGroup(group.key)}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${groupActive ? "text-white font-semibold bg-blue-700/40" : "text-blue-100 hover:bg-blue-700"}`}>
+                <ParentIcon size={18} className="shrink-0" />
+                <span className="flex-1 text-left truncate">{group.title}</span>
+                <ChevronDown size={15} className={`shrink-0 transition-transform duration-200 ${isExpanded ? "rotate-180" : ""}`} />
+              </button>
+              {isExpanded && (
+                <div className="mt-0.5 ml-3 pl-3 border-l border-blue-700/60 space-y-0.5">
+                  {group.items.map((item) => {
+                    const Icon = item.icon;
+                    const active = pathname.startsWith(item.href);
+                    return (
+                      <Link key={item.href} href={item.href} onClick={() => setMobileOpen(false)}
+                        className={`flex items-center gap-2.5 rounded-lg text-sm px-3 py-2 transition-colors ${active ? "bg-white text-blue-700 font-semibold" : "text-blue-100 hover:bg-blue-700"}`}>
+                        <Icon size={16} className="shrink-0" /> <span className="truncate">{item.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </nav>
 
       {/* Footer */}
