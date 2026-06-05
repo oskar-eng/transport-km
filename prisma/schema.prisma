@@ -87,6 +87,9 @@ model Unit {
   otherCosts    OtherCost[]
   expenses      Expense[]
   sanciones     Sancion[]
+  workOrders       WorkOrder[]
+  materialRequests MaterialRequest[]
+  incidents        Incident[]
 }
 
 model Sancion {
@@ -166,6 +169,100 @@ model TrailerDocument {
   trailer Trailer @relation(fields: [trailerId], references: [id], onDelete: Cascade)
 
   @@unique([trailerId, type])
+}
+
+model MaintenanceTemplate {
+  id        String   @id @default(cuid())
+  brand     String   // Foton | Volvo | Freightliner | etc.
+  type      String   // A | B | C | OTRO
+  name      String
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items TemplateItem[]
+}
+
+model TemplateItem {
+  id         String  @id @default(cuid())
+  templateId String
+  partId     String?
+  partName   String
+  quantity   Float   @default(1)
+
+  template MaintenanceTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+}
+
+model WorkOrder {
+  id          String    @id @default(cuid())
+  numero      Int
+  unitId      String
+  type        String    // PREVENTIVO | CORRECTIVO
+  maintType   String?   // A | B | C
+  templateId  String?
+  status      String    @default("ABIERTA") // ABIERTA | EN_PROCESO | CERRADA
+  description String?
+  diagnosis   String?
+  mechanic    String?
+  laborCost   Float?
+  odometer    Int?
+  evidenceUrl String?
+  testsDone   String?
+  openedAt    DateTime  @default(now())
+  closedAt    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  unit      Unit @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  materials WorkOrderMaterial[]
+}
+
+model WorkOrderMaterial {
+  id          String  @id @default(cuid())
+  workOrderId String
+  partId      String?
+  partName    String
+  quantity    Float
+  unitCost    Float?
+
+  workOrder WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+}
+
+model MaterialRequest {
+  id              String   @id @default(cuid())
+  numero          Int
+  unitId          String?
+  requestedById   String?
+  requestedByName String?
+  date            DateTime
+  material        String
+  quantity        Float    @default(1)
+  status          String   @default("PENDIENTE") // PENDIENTE | APROBADA | ENTREGADA | RECHAZADA
+  photoUrl        String?  // foto del material solicitado
+  productPhotoUrl String?  // foto del producto recibido
+  receiptUrl      String?  // comprobante / factura
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  unit Unit? @relation(fields: [unitId], references: [id], onDelete: SetNull)
+}
+
+model Incident {
+  id          String   @id @default(cuid())
+  numero      Int
+  unitId      String?
+  driverId    String?
+  driverName  String?
+  date        DateTime
+  description String
+  severity    String   @default("MEDIA") // BAJA | MEDIA | ALTA
+  status      String   @default("ABIERTA") // ABIERTA | EN_REVISION | RESUELTA
+  photoUrl    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  unit Unit? @relation(fields: [unitId], references: [id], onDelete: SetNull)
 }
 
 model SparePart {
