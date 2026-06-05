@@ -110,7 +110,7 @@ export default function ReportsClient({ units, drivers }: { units: Unit[]; drive
     // Fuel sheet
     const fuelRows = data.fuelRecords.map(r => ({
       Fecha: r.date.slice(0,10), Unidad: r.unit.plate, Modelo: r.unit.model,
-      "Litros": r.liters, "Costo Total (S/)": r.totalCost??0,
+      "Galones": r.liters, "Costo Total (S/)": r.totalCost??0,
       Odómetro: r.odometer, Estación: r.station??"", Combustible: r.fuelType,
     }));
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(fuelRows), "Combustible");
@@ -337,7 +337,7 @@ export default function ReportsClient({ units, drivers }: { units: Unit[]; drive
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50">
-                    <tr>{["Fecha","Unidad","Litros","Costo","Odómetro","Estación","Tipo"].map(h=>(
+                    <tr>{["Fecha","Unidad","Galones","Costo","Odómetro","Estación","Tipo"].map(h=>(
                       <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{h}</th>
                     ))}</tr>
                   </thead>
@@ -346,7 +346,7 @@ export default function ReportsClient({ units, drivers }: { units: Unit[]; drive
                       <tr key={r.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3 text-gray-500">{r.date.slice(0,10)}</td>
                         <td className="px-4 py-3 font-medium">{r.unit.plate}</td>
-                        <td className="px-4 py-3">{r.liters.toFixed(1)} L</td>
+                        <td className="px-4 py-3">{r.liters.toFixed(1)} Gal</td>
                         <td className="px-4 py-3 font-semibold">{r.totalCost ? fmt(r.totalCost) : "—"}</td>
                         <td className="px-4 py-3 text-gray-600">{r.odometer.toLocaleString()} km</td>
                         <td className="px-4 py-3 text-gray-500">{r.station??"—"}</td>

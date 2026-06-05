@@ -42,10 +42,10 @@ Devuelve ÚNICAMENTE el JSON sin explicaciones ni markdown:
 {
   "plate": "número de placa del vehículo (ej: BFT-857)",
   "date": "fecha en formato YYYY-MM-DD",
-  "liters": número de litros o galones convertido a litros (1 GAL = 3.785 litros),
+  "liters": cantidad en GALONES (si el recibo está en litros, conviértelo a galones: 1 GAL = 3.785 litros),
   "unit": "GAL o LT (unidad original en el recibo)",
   "quantityOriginal": cantidad original del recibo sin convertir,
-  "pricePerLiter": precio por litro como número (si está disponible),
+  "pricePerLiter": precio por galón como número (si está disponible),
   "totalCost": monto total en soles como número,
   "odometer": kilometraje como número entero (quita puntos y comas),
   "station": "nombre de la estación o grifo",
@@ -65,9 +65,11 @@ Devuelve ÚNICAMENTE el JSON sin explicaciones ni markdown:
 
     const data = JSON.parse(jsonMatch[0]);
 
-    // Convert gallons to liters if needed
-    if (data.unit === "GAL" && data.quantityOriginal) {
-      data.liters = parseFloat((data.quantityOriginal * 3.785).toFixed(2));
+    // El campo "liters" representa galones. Si el recibo vino en litros, convertir a galones.
+    if (data.unit === "LT" && data.quantityOriginal) {
+      data.liters = parseFloat((data.quantityOriginal / 3.785).toFixed(2));
+    } else if (data.unit === "GAL" && data.quantityOriginal) {
+      data.liters = parseFloat(Number(data.quantityOriginal).toFixed(2));
     }
 
     return NextResponse.json(data);

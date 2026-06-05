@@ -228,7 +228,7 @@ export default function UnitsClient({ units: initial, userRole }: { units: Unit[
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-500">
                   {u.loadCapacity  && <span>Carga: <strong>{u.loadCapacity} t</strong></span>}
-                  {u.fuelCapacity  && <span>Combustible: <strong>{u.fuelCapacity} L</strong></span>}
+                  {u.fuelCapacity  && <span>Combustible: <strong>{u.fuelCapacity} Gal</strong></span>}
                   {u.ownerCompany  && <span className="col-span-2 truncate">Empresa: <strong>{u.ownerCompany}</strong></span>}
                   {u.vin           && <span className="col-span-2 truncate font-mono text-gray-400">VIN: {u.vin}</span>}
                 </div>
@@ -325,7 +325,7 @@ export default function UnitsClient({ units: initial, userRole }: { units: Unit[
                 {F("N° de ejes", inp("axles", "number", "2"))}
 
                 {F("Capacidad de carga (t)", inp("loadCapacity", "number", "30"))}
-                {F("Cap. combustible (L)", inp("fuelCapacity", "number", "600"))}
+                {F("Cap. combustible (Gal)", inp("fuelCapacity", "number", "160"))}
 
                 {F("Empresa propietaria", inp("ownerCompany", "text", "YACZ CARGO S.A.C."), 2)}
 
