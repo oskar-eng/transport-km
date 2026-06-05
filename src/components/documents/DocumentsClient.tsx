@@ -322,18 +322,18 @@ export default function DocumentsClient({ docs: initial, units, userRole }: { do
                       <button type="button" onClick={() => set("fileUrl", "")}
                         className="text-gray-400 hover:text-red-600 shrink-0"><X size={16} /></button>
                     </div>
-                    {/* Vista previa: imagen o PDF */}
+                    {/* Vista previa: imagen (miniatura) o PDF (tarjeta) */}
                     {isPdf(form.fileUrl) ? (
-                      <iframe src={form.fileUrl} className="w-full h-64 rounded-lg border border-gray-200 bg-white" title="Vista previa del documento" />
+                      <div className="flex items-center gap-3 bg-white border border-gray-200 rounded-lg p-3">
+                        <div className="bg-red-100 p-2 rounded-lg shrink-0"><FileText size={20} className="text-red-600" /></div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-gray-800">Documento PDF cargado</p>
+                          <p className="text-xs text-gray-400">Podrás verlo y descargarlo al guardar</p>
+                        </div>
+                      </div>
                     ) : (
-                      <a href={form.fileUrl} target="_blank" rel="noopener noreferrer">
-                        <img src={form.fileUrl} alt="Vista previa" className="w-full max-h-64 object-contain rounded-lg border border-gray-200 bg-white" />
-                      </a>
+                      <img src={form.fileUrl} alt="Vista previa" className="w-full max-h-64 object-contain rounded-lg border border-gray-200 bg-white" />
                     )}
-                    <a href={form.fileUrl} target="_blank" rel="noopener noreferrer"
-                      className="mt-2 inline-flex items-center gap-1 text-xs text-blue-600 hover:underline">
-                      <FileText size={12} /> Abrir en pantalla completa
-                    </a>
                   </div>
                 ) : (
                   <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}

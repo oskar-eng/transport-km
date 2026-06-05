@@ -45,11 +45,10 @@ export async function POST(req: NextRequest) {
     form.append("folder", cloudFolder);
     form.append("signature", signature);
 
-    // Imágenes → "image"; PDFs y otros → "raw" (evita el bloqueo de entrega de PDFs)
-    const isImage = file.type.startsWith("image/");
-    const resourceType = isImage ? "image" : "raw";
+    // "auto": imágenes y PDFs → tipo "image" (se renderizan en el visor);
+    // requiere "Allow delivery of PDF and ZIP files" activado en Cloudinary.
     const res = await fetch(
-      `https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`,
+      `https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME}/auto/upload`,
       { method: "POST", body: form }
     );
     const data = await res.json();

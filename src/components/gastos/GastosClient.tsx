@@ -268,7 +268,14 @@ export default function GastosClient({ expenses: initial, units, summary, userRo
                         <span className="text-sm text-green-700 font-medium flex-1">Comprobante cargado ✓</span>
                         <button type="button" onClick={() => set("receiptUrl", "")} className="text-gray-400 hover:text-red-600"><X size={16}/></button>
                       </div>
-                      <img src={form.receiptUrl} alt="comprobante" className="w-full max-h-48 object-contain rounded-lg border border-gray-200 bg-white" />
+                      {/\.pdf($|\?)/i.test(form.receiptUrl) || form.receiptUrl.includes("/raw/") ? (
+                        <div className="flex items-center gap-3 bg-white border border-gray-200 rounded-lg p-3">
+                          <div className="bg-red-100 p-2 rounded-lg shrink-0"><Receipt size={20} className="text-red-600" /></div>
+                          <div><p className="text-sm font-medium text-gray-800">Comprobante PDF cargado</p><p className="text-xs text-gray-400">Podrás verlo y descargarlo al guardar</p></div>
+                        </div>
+                      ) : (
+                        <img src={form.receiptUrl} alt="comprobante" className="w-full max-h-48 object-contain rounded-lg border border-gray-200 bg-white" />
+                      )}
                     </div>
                   ) : (
                     <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
