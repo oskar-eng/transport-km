@@ -11,12 +11,20 @@ export default async function UnitsPage() {
   const user = session.user as { role: string };
   if (user.role === "CONDUCTOR") redirect("/dashboard");
 
-  const units = await prisma.unit.findMany({ orderBy: { plate: "asc" } });
+  const units = await prisma.unit.findMany({
+    orderBy: { plate: "asc" },
+    include: { unitDocuments: true },
+  });
   const serialized = units.map(u => ({
     ...u,
     acquisitionDate: u.acquisitionDate?.toISOString() ?? null,
     createdAt: u.createdAt.toISOString(),
     updatedAt: u.updatedAt.toISOString(),
+    documents: u.unitDocuments.map(d => ({
+      type:       d.type,
+      expiryDate: d.expiryDate?.toISOString() ?? null,
+      fileUrl:    d.fileUrl,
+    })),
   }));
 
   return (

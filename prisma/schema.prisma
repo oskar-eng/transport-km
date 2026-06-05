@@ -70,18 +70,34 @@ model Unit {
   fuelCapacity    Float?
   ownerCompany    String?
   status          String    @default("DISPONIBLE")
+  localType       String?   // Puerto/Deposito | otro
   acquisitionDate DateTime?
   photoUrl        String?
   notes           String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  orders       ServiceOrder[]
-  documents    VehicleDocument[]
-  fuelRecords  FuelRecord[]
-  maintenance  MaintenanceRecord[]
-  tires        Tire[]
-  otherCosts   OtherCost[]
+  orders        ServiceOrder[]
+  documents     VehicleDocument[]
+  unitDocuments UnitDocument[]
+  fuelRecords   FuelRecord[]
+  maintenance   MaintenanceRecord[]
+  tires         Tire[]
+  otherCosts    OtherCost[]
+}
+
+model UnitDocument {
+  id         String    @id @default(cuid())
+  unitId     String
+  type       String    // HABILITACION | SOAT | REVISION_TECNICA | POLIZA | FOTO_PLACA | TARJETA_PROPIEDAD
+  expiryDate DateTime?
+  fileUrl    String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  unit Unit @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  @@unique([unitId, type])
 }
 
 model ServiceOrder {

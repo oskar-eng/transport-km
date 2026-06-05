@@ -22,6 +22,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       loadCapacity:    body.loadCapacity    ? Number(body.loadCapacity) : null,
       fuelCapacity:    body.fuelCapacity    ? Number(body.fuelCapacity) : null,
       ownerCompany:    body.ownerCompany    || null,
+      localType:       body.localType       !== undefined ? (body.localType || null) : undefined,
       acquisitionDate: body.acquisitionDate ? new Date(body.acquisitionDate) : null,
       photoUrl:        body.photoUrl        !== undefined ? body.photoUrl : undefined,
       notes:           body.notes           || null,

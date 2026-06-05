@@ -37,6 +37,7 @@ export async function POST(req: NextRequest) {
       loadCapacity:    body.loadCapacity    ? Number(body.loadCapacity) : null,
       fuelCapacity:    body.fuelCapacity    ? Number(body.fuelCapacity) : null,
       ownerCompany:    body.ownerCompany    || null,
+      localType:       body.localType       || null,
       acquisitionDate: body.acquisitionDate ? new Date(body.acquisitionDate) : null,
       photoUrl:        body.photoUrl        || null,
       notes:           body.notes           || null,

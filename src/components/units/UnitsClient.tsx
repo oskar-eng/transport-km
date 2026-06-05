@@ -1,7 +1,9 @@
 "use client";
 import { useState, useRef } from "react";
-import { Plus, Pencil, Truck, Lock, X, Camera, ImageOff, ScanLine, Loader2, CheckCircle2 } from "lucide-react";
+import { Plus, Pencil, Truck, Lock, X, Camera, ImageOff, ScanLine, Loader2, CheckCircle2, ExternalLink } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
+import { unitHabilitado, type UnitDoc } from "@/lib/vehicleDocsFixed";
 
 interface Unit {
   id: string; plate: string; brand: string | null; model: string; year: number;
@@ -9,6 +11,7 @@ interface Unit {
   loadCapacity: number | null; fuelCapacity: number | null;
   ownerCompany: string | null; status: string;
   acquisitionDate: string | null; photoUrl: string | null; notes: string | null;
+  documents?: UnitDoc[];
 }
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; auto: boolean }> = {
@@ -196,6 +199,7 @@ export default function UnitsClient({ units: initial, userRole }: { units: Unit[
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {units.map(u => {
           const cfg = STATUS_CONFIG[u.status] ?? { label: u.status, color: "bg-gray-100 text-gray-700 border border-gray-200", auto: false };
+          const habilitado = unitHabilitado(u.documents ?? []);
           return (
             <div key={u.id} className="bg-white rounded-xl shadow-sm overflow-hidden">
               <div className="h-36 bg-gray-100 relative">
@@ -204,6 +208,11 @@ export default function UnitsClient({ units: initial, userRole }: { units: Unit[
                   : <div className="flex items-center justify-center h-full"><Truck size={40} className="text-gray-300" /></div>}
                 <div className="absolute top-2 right-2">
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${cfg.color}`}>{cfg.label}</span>
+                </div>
+                <div className="absolute top-2 left-2">
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${habilitado ? "bg-green-500 text-white" : "bg-red-500 text-white"}`}>
+                    {habilitado ? "Habilitado" : "Deshabilitado"}
+                  </span>
                 </div>
               </div>
               <div className="p-4">
@@ -223,11 +232,10 @@ export default function UnitsClient({ units: initial, userRole }: { units: Unit[
                   {u.ownerCompany  && <span className="col-span-2 truncate">Empresa: <strong>{u.ownerCompany}</strong></span>}
                   {u.vin           && <span className="col-span-2 truncate font-mono text-gray-400">VIN: {u.vin}</span>}
                 </div>
-                {cfg.auto && (
-                  <div className="flex items-center gap-1 mt-2">
-                    <Lock size={10} className="text-gray-300" /><span className="text-xs text-gray-300">Estado automático</span>
-                  </div>
-                )}
+                <Link href={`/units/${u.id}`}
+                  className="mt-3 flex items-center justify-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 border border-blue-200 hover:border-blue-400 rounded-lg py-2 transition-colors">
+                  <ExternalLink size={13} /> Gestionar documentos
+                </Link>
               </div>
             </div>
           );
