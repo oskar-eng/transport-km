@@ -46,7 +46,7 @@ export default function DocumentsClient({ docs: initial, units, userRole }: { do
   const [filterStatus, setFilterStatus] = useState("TODOS");
   const [filterUnit, setFilterUnit]     = useState("TODOS");
   const [uploading, setUploading] = useState(false);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{ url: string; name: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const canEdit = ["ADMINISTRADOR", "JEFE_TRANSPORTE", "SUPERVISOR"].includes(userRole);
@@ -228,7 +228,7 @@ export default function DocumentsClient({ docs: initial, units, userRole }: { do
                         <p className="font-medium text-gray-800">{d.name}</p>
                         {d.notes && <p className="text-xs text-gray-400 truncate max-w-48">{d.notes}</p>}
                         {d.fileUrl && (
-                          <button type="button" onClick={() => setPreview(d.fileUrl)}
+                          <button type="button" onClick={() => setPreview({ url: d.fileUrl!, name: `${DOC_TYPES[d.type] ?? d.type}_${d.unit.plate}_${format(new Date(d.expiryDate), "yyyy-MM-dd")}` })}
                             className="text-xs text-blue-600 hover:underline flex items-center gap-1 mt-0.5">
                             <FileText size={10} /> Ver archivo
                           </button>
@@ -368,7 +368,7 @@ export default function DocumentsClient({ docs: initial, units, userRole }: { do
       )}
 
       {/* Modal de vista previa del documento */}
-      {preview && <FilePreview url={preview} title="Documento" onClose={() => setPreview(null)} />}
+      {preview && <FilePreview url={preview.url} filename={preview.name} title="Documento" onClose={() => setPreview(null)} />}
     </div>
   );
 }

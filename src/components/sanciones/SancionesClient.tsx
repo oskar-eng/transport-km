@@ -34,7 +34,7 @@ export default function SancionesClient({ sanciones: initial, units, drivers, us
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [filterStatus, setFilterStatus] = useState("TODOS");
-  const [preview, setPreview] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{ url: string; name: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   function set(f: string, v: string) { setForm(p => ({ ...p, [f]: v })); }
@@ -140,7 +140,7 @@ export default function SancionesClient({ sanciones: initial, units, drivers, us
                           {Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                         </select>
                       </td>
-                      <td className="px-4 py-3">{s.documentUrl ? <button onClick={() => setPreview(s.documentUrl)} className="text-xs text-blue-600 hover:underline flex items-center gap-1"><FileText size={12}/>Ver</button> : <span className="text-gray-300 text-xs">—</span>}</td>
+                      <td className="px-4 py-3">{s.documentUrl ? <button onClick={() => setPreview({ url: s.documentUrl!, name: `Sancion_${TYPES[s.type] ?? s.type}_${s.unit?.plate ?? s.driver?.name ?? ""}_${format(new Date(s.date), "yyyy-MM-dd")}` })} className="text-xs text-blue-600 hover:underline flex items-center gap-1"><FileText size={12}/>Ver</button> : <span className="text-gray-300 text-xs">—</span>}</td>
                       <td className="px-4 py-3">{canDelete && <button onClick={() => handleDelete(s.id)} className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50"><Trash2 size={13}/></button>}</td>
                     </tr>
                   );
@@ -228,7 +228,7 @@ export default function SancionesClient({ sanciones: initial, units, drivers, us
         </div>
       )}
 
-      {preview && <FilePreview url={preview} title="Documento" onClose={() => setPreview(null)} />}
+      {preview && <FilePreview url={preview.url} filename={preview.name} title="Documento" onClose={() => setPreview(null)} />}
     </div>
   );
 }

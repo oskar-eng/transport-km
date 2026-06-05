@@ -38,7 +38,7 @@ export default function GastosClient({ expenses: initial, units, summary, userRo
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [preview, setPreview] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{ url: string; name: string } | null>(null);
   const [filterUnit, setFilterUnit] = useState("TODOS");
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -201,7 +201,7 @@ export default function GastosClient({ expenses: initial, units, summary, userRo
                       <td className="px-4 py-3 font-semibold text-gray-900">{money(e.amount)}</td>
                       <td className="px-4 py-3">
                         {e.receiptUrl
-                          ? <button onClick={() => setPreview(e.receiptUrl)} className="text-xs text-blue-600 hover:underline flex items-center gap-1"><Receipt size={12}/> Ver</button>
+                          ? <button onClick={() => setPreview({ url: e.receiptUrl!, name: `Comprobante_${e.unit.plate}_${e.category}_${format(new Date(e.date), "yyyy-MM-dd")}` })} className="text-xs text-blue-600 hover:underline flex items-center gap-1"><Receipt size={12}/> Ver</button>
                           : <span className="text-gray-300 text-xs">—</span>}
                       </td>
                       <td className="px-4 py-3 text-gray-500 text-xs">{e.createdByName ?? "—"}</td>
@@ -292,7 +292,7 @@ export default function GastosClient({ expenses: initial, units, summary, userRo
       )}
 
       {/* Modal vista comprobante */}
-      {preview && <FilePreview url={preview} title="Comprobante" onClose={() => setPreview(null)} />}
+      {preview && <FilePreview url={preview.url} filename={preview.name} title="Comprobante" onClose={() => setPreview(null)} />}
     </div>
   );
 }
