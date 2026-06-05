@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import {
   LayoutDashboard, Package, Truck, Users, BarChart3, LogOut, Menu, X,
-  MapPin, FileText, Fuel, Wrench, Circle, DollarSign, ChevronLeft, ChevronRight, UserRound, Receipt, AlertOctagon,
+  MapPin, FileText, Fuel, Wrench, Circle, DollarSign, ChevronLeft, ChevronRight, UserRound, Receipt, AlertOctagon, History,
 } from "lucide-react";
 import { useState } from "react";
 import { ROLE_LABELS } from "@/lib/events";
@@ -22,6 +22,7 @@ const navItems = [
   { href: "/costs",       label: "Costos",        icon: DollarSign,      roles: ["ADMINISTRADOR", "JEFE_TRANSPORTE", "SUPERVISOR", "ANALISTA"] },
   { href: "/gastos",      label: "Gastos",        icon: Receipt,         roles: ["ADMINISTRADOR", "JEFE_TRANSPORTE", "SUPERVISOR", "ANALISTA", "CONDUCTOR"] },
   { href: "/sanciones",   label: "Sanciones",     icon: AlertOctagon,    roles: ["ADMINISTRADOR", "JEFE_TRANSPORTE", "SUPERVISOR", "ANALISTA"] },
+  { href: "/bitacora",    label: "Bitácora",      icon: History,         roles: ["ADMINISTRADOR", "JEFE_TRANSPORTE", "SUPERVISOR", "ANALISTA"] },
   { href: "/drivers",     label: "Conductores",   icon: UserRound,       roles: ["ADMINISTRADOR", "JEFE_TRANSPORTE", "SUPERVISOR", "ANALISTA"] },
   { href: "/users",       label: "Usuarios",      icon: Users,           roles: ["ADMINISTRADOR"] },
   { href: "/reports",     label: "Reportes",      icon: BarChart3,       roles: ["ADMINISTRADOR", "JEFE_TRANSPORTE", "SUPERVISOR", "ANALISTA"] },
