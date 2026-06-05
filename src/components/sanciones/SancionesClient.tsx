@@ -3,6 +3,7 @@ import { useState, useMemo, useRef } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Plus, Trash2, X, AlertOctagon, Upload, Loader2, FileText, Truck, UserRound } from "lucide-react";
+import FilePreview from "@/components/common/FilePreview";
 
 const TYPES: Record<string, string> = { PAPELETA: "Papeleta", INFRACCION: "Infracción", OTRO: "Otro" };
 const STATUS: Record<string, { label: string; color: string }> = {
@@ -227,19 +228,7 @@ export default function SancionesClient({ sanciones: initial, units, drivers, us
         </div>
       )}
 
-      {preview && (
-        <div className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-4" onClick={() => setPreview(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
-              <h2 className="font-bold text-gray-900 text-sm flex items-center gap-2"><FileText size={16} className="text-blue-600"/> Documento</h2>
-              <button onClick={() => setPreview(null)} className="text-gray-400 hover:text-gray-600"><X size={20}/></button>
-            </div>
-            <div className="flex-1 overflow-auto p-4 bg-gray-50 flex items-center justify-center">
-              {/\.pdf($|\?)/i.test(preview) ? <iframe src={preview} className="w-full h-[75vh] rounded-lg bg-white" title="Doc" /> : <img src={preview} alt="Doc" className="max-w-full max-h-[75vh] object-contain rounded-lg" />}
-            </div>
-          </div>
-        </div>
-      )}
+      {preview && <FilePreview url={preview} title="Documento" onClose={() => setPreview(null)} />}
     </div>
   );
 }

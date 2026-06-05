@@ -3,6 +3,7 @@ import { useState, useMemo, useRef } from "react";
 import { format, differenceInDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { Plus, Pencil, Trash2, FileText, AlertTriangle, CheckCircle2, XCircle, Filter, Upload, Loader2, X } from "lucide-react";
+import FilePreview from "@/components/common/FilePreview";
 
 const DOC_TYPES: Record<string, string> = {
   SOAT:             "SOAT",
@@ -367,29 +368,7 @@ export default function DocumentsClient({ docs: initial, units, userRole }: { do
       )}
 
       {/* Modal de vista previa del documento */}
-      {preview && (
-        <div className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-4" onClick={() => setPreview(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[92vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
-              <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                <FileText size={18} className="text-blue-600" /> Vista previa del documento
-              </h2>
-              <div className="flex items-center gap-2">
-                <a href={preview} target="_blank" rel="noopener noreferrer"
-                  className="text-xs text-blue-600 hover:underline">Abrir en pestaña nueva</a>
-                <button onClick={() => setPreview(null)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
-              </div>
-            </div>
-            <div className="flex-1 overflow-auto p-4 bg-gray-50 flex items-center justify-center">
-              {isPdf(preview) ? (
-                <iframe src={preview} className="w-full h-[75vh] rounded-lg border border-gray-200 bg-white" title="Documento" />
-              ) : (
-                <img src={preview} alt="Documento" className="max-w-full max-h-[75vh] object-contain rounded-lg" />
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      {preview && <FilePreview url={preview} title="Documento" onClose={() => setPreview(null)} />}
     </div>
   );
 }
