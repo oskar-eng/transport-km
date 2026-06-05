@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import Anthropic from "@anthropic-ai/sdk";
 import { unitHabilitado } from "@/lib/vehicleDocsFixed";
 import { driverHabilitado } from "@/lib/driverDocs";
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+// Modelo gratuito y rápido de Google Gemini
+const GEMINI_MODEL = "gemini-2.0-flash";
 
 const STATUS_LABELS: Record<string, string> = {
   DISPONIBLE: "Operativo", EN_SERVICIO: "En Servicio",
@@ -64,8 +64,9 @@ export async function POST(req: NextRequest) {
   const user = session.user as { role: string };
   if (user.role === "CONDUCTOR") return NextResponse.json({ error: "Sin acceso" }, { status: 403 });
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return NextResponse.json({ error: "El asistente no está configurado todavía (falta ANTHROPIC_API_KEY)." }, { status: 503 });
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return NextResponse.json({ error: "El asistente no está configurado todavía (falta GEMINI_API_KEY)." }, { status: 503 });
   }
 
   try {
@@ -86,18 +87,32 @@ Reglas:
 DATOS ACTUALES DE LA FLOTA (en formato JSON):
 ${JSON.stringify(snapshot)}`;
 
-    const response = await client.messages.create({
-      model: "claude-haiku-4-5",
-      max_tokens: 1024,
-      system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
-      messages: (messages ?? []).map((m: { role: string; content: string }) => ({
-        role: m.role === "assistant" ? "assistant" : "user",
-        content: m.content,
-      })),
+    // Gemini usa los roles "user" y "model"
+    const contents = (messages ?? []).map((m: { role: string; content: string }) => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content }],
+    }));
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: system }] },
+        contents,
+        generationConfig: { maxOutputTokens: 1024, temperature: 0.3 },
+      }),
     });
 
-    const text = response.content.find(c => c.type === "text");
-    return NextResponse.json({ reply: text && text.type === "text" ? text.text : "No pude generar una respuesta." });
+    if (!res.ok) {
+      const errBody = await res.text();
+      console.error("gemini error:", res.status, errBody);
+      return NextResponse.json({ error: "El asistente tuvo un problema al responder. Intenta de nuevo." }, { status: 500 });
+    }
+
+    const data = await res.json();
+    const reply = data?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? "").join("").trim();
+    return NextResponse.json({ reply: reply || "No pude generar una respuesta." });
   } catch (err: unknown) {
     console.error("chat error:", err);
     const msg = err instanceof Error ? err.message : "Error en el asistente";
