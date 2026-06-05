@@ -2,8 +2,25 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { unitHabilitado } from "@/lib/vehicleDocsFixed";
-import { driverHabilitado } from "@/lib/driverDocs";
+import { unitHabilitado, unitDocStatus, UNIT_DOC_TYPES } from "@/lib/vehicleDocsFixed";
+import { driverHabilitado, docStatus, DRIVER_DOC_TYPES } from "@/lib/driverDocs";
+
+// Detalla el estado de cada documento obligatorio (cuál falta, vencido, por vencer u OK)
+function detalleDocs<T extends { key: string; label: string }>(
+  tipos: T[],
+  docs: { type: string; expiryDate: string | null; fileUrl: string | null }[],
+  estado: (d?: { type: string; expiryDate: string | null; fileUrl: string | null }) => { label: string },
+) {
+  return tipos.map(t => {
+    const doc = docs.find(d => d.type === t.key);
+    const st = estado(doc);
+    return {
+      documento: t.label,
+      estado: st.label, // OK | POR VENCER | VENCIDO | FALTA | FALTA FECHA
+      vence: doc?.expiryDate ? doc.expiryDate.slice(0, 10) : null,
+    };
+  });
+}
 
 // Modelo gratuito y rápido de Google Gemini
 const GEMINI_MODEL = "gemini-2.5-flash";
@@ -32,20 +49,28 @@ async function buildSnapshot() {
   ]);
 
   return {
-    unidades: units.map(u => ({
-      placa: u.plate, marca: u.brand, modelo: u.model, anio: u.year,
-      ejes: u.axles, tipoLocal: u.localType,
-      estadoOperativo: STATUS_LABELS[u.status] ?? u.status,
-      habilitado: unitHabilitado(u.unitDocuments.map(d => ({ type: d.type, expiryDate: d.expiryDate?.toISOString() ?? null, fileUrl: d.fileUrl }))),
-    })),
-    conductores: drivers.map(c => ({
-      nombre: c.driverProfile ? `${c.driverProfile.firstName} ${c.driverProfile.lastName}` : c.name,
-      dni: c.driverProfile?.dni ?? null,
-      licencia: c.driverProfile?.licenseNumber ?? null,
-      categoria: c.driverProfile?.licenseCategory ?? null,
-      estado: c.driverProfile?.status ?? null,
-      habilitado: c.driverProfile ? driverHabilitado(c.driverProfile.documents.map(d => ({ type: d.type, expiryDate: d.expiryDate?.toISOString() ?? null, fileUrl: d.fileUrl }))) : false,
-    })),
+    unidades: units.map(u => {
+      const docs = u.unitDocuments.map(d => ({ type: d.type, expiryDate: d.expiryDate?.toISOString() ?? null, fileUrl: d.fileUrl }));
+      return {
+        placa: u.plate, marca: u.brand, modelo: u.model, anio: u.year,
+        ejes: u.axles, tipoLocal: u.localType,
+        estadoOperativo: STATUS_LABELS[u.status] ?? u.status,
+        habilitado: unitHabilitado(docs),
+        documentos: detalleDocs(UNIT_DOC_TYPES, docs, unitDocStatus),
+      };
+    }),
+    conductores: drivers.map(c => {
+      const docs = c.driverProfile?.documents.map(d => ({ type: d.type, expiryDate: d.expiryDate?.toISOString() ?? null, fileUrl: d.fileUrl })) ?? [];
+      return {
+        nombre: c.driverProfile ? `${c.driverProfile.firstName} ${c.driverProfile.lastName}` : c.name,
+        dni: c.driverProfile?.dni ?? null,
+        licencia: c.driverProfile?.licenseNumber ?? null,
+        categoria: c.driverProfile?.licenseCategory ?? null,
+        estado: c.driverProfile?.status ?? null,
+        habilitado: c.driverProfile ? driverHabilitado(docs) : false,
+        documentos: c.driverProfile ? detalleDocs(DRIVER_DOC_TYPES, docs, docStatus) : [],
+      };
+    }),
     mantenimientos: maints.map(m => ({
       placa: m.unit.plate, tipo: m.type, descripcion: m.description,
       estado: m.status, fecha: m.date.toISOString().slice(0, 10),
@@ -73,16 +98,25 @@ export async function POST(req: NextRequest) {
     const { messages } = await req.json();
     const snapshot = await buildSnapshot();
 
-    const system = `Eres "Yacz", el asistente virtual de la empresa Transporte Yacz Cargo (gestión de flota de transporte de carga en Perú).
+    const system = `Eres "Yacz", la asistente virtual de la empresa Transporte Yacz Cargo (gestión de flota de transporte de carga en Perú).
+Eres una asistente MUJER, cálida, cariñosa y cercana. Respondes con dulzura y amabilidad, como una compañera atenta que quiere ayudar.
 Respondes preguntas del personal sobre la flota basándote ÚNICAMENTE en los datos proporcionados abajo.
 
-Reglas:
-- Responde en español, de forma breve y clara.
-- Si te preguntan por placas/unidades/conductores en cierto estado, lista los que correspondan.
-- "Habilitado" = todos sus documentos están vigentes. "Deshabilitado/Inhabilitado" = le falta o venció algún documento.
+Personalidad y tono:
+- Habla en femenino ("estoy lista para ayudarte", "encantada", "con mucho gusto").
+- Sé cariñosa y cordial: usa expresiones como "¡Hola! 😊", "claro que sí", "con todo gusto", "cuídate mucho", "estoy para apoyarte".
+- Puedes usar uno o dos emojis suaves (😊💙✨📋), sin exagerar.
+- Mantén la respuesta clara y útil; el cariño no debe quitar precisión.
+
+Reglas de información:
+- Responde en español.
+- Cada unidad y cada conductor traen una lista "documentos" con: documento, estado (OK, POR VENCER, VENCIDO, FALTA o FALTA FECHA) y fecha de vencimiento.
+- "OK" = vigente. "POR VENCER" = vence en menos de 30 días. "VENCIDO" = ya caducó. "FALTA" = no se ha subido. "FALTA FECHA" = está subido pero sin fecha de vencimiento.
+- Cuando te pregunten por documentos de una placa o conductor, REVISA su lista "documentos" y di claramente cuáles faltan, cuáles están vencidos, cuáles por vencer y cuáles OK. Menciona el nombre del documento y su fecha de vencimiento si la tiene.
+- "Habilitado" = TODOS sus documentos están vigentes (con archivo y fecha al día). "Deshabilitado/Inhabilitado" = le falta o venció algún documento; en ese caso indica EXACTAMENTE cuál(es) es el problema.
 - "En Taller" o "MANTENIMIENTO" = unidad en mantenimiento.
-- Si no hay datos para responder, dilo claramente. No inventes.
-- Usa viñetas cuando listes varios elementos.
+- Si no hay datos para responder, dilo con amabilidad. Nunca inventes información.
+- Usa viñetas cuando listes varios elementos para que se lea fácil.
 
 DATOS ACTUALES DE LA FLOTA (en formato JSON):
 ${JSON.stringify(snapshot)}`;
@@ -100,7 +134,12 @@ ${JSON.stringify(snapshot)}`;
       body: JSON.stringify({
         system_instruction: { parts: [{ text: system }] },
         contents,
-        generationConfig: { maxOutputTokens: 1024, temperature: 0.3 },
+        generationConfig: {
+          maxOutputTokens: 1200,
+          temperature: 0.6,
+          // Desactiva el "pensamiento" de 2.5-flash para respuestas completas, rápidas y económicas
+          thinkingConfig: { thinkingBudget: 0 },
+        },
       }),
     });
 

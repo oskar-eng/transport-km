@@ -5,10 +5,10 @@ import { Bot, Send, X, Loader2, Sparkles } from "lucide-react";
 interface Msg { role: "user" | "assistant"; content: string }
 
 const SUGERENCIAS = [
+  "¿Qué documentos le faltan a cada conductor?",
+  "¿Qué placas tienen documentos vencidos o por vencer?",
+  "¿Qué unidades están deshabilitadas y por qué?",
   "¿Qué unidades están en mantenimiento?",
-  "¿Qué conductores están habilitados?",
-  "¿Qué placas tienen documentos vencidos?",
-  "¿Cuántas órdenes activas hay?",
 ];
 
 export default function ChatBot() {
@@ -61,7 +61,7 @@ export default function ChatBot() {
               <div className="bg-white/20 rounded-full p-1.5"><Bot size={18} /></div>
               <div>
                 <p className="font-bold text-sm leading-tight">Yacz</p>
-                <p className="text-blue-200 text-xs">Asistente de la flota</p>
+                <p className="text-blue-200 text-xs">Tu asistente de la flota 💙</p>
               </div>
             </div>
             <button onClick={() => setOpen(false)} className="text-blue-200 hover:text-white"><X size={20} /></button>
@@ -72,8 +72,8 @@ export default function ChatBot() {
             {messages.length === 0 && (
               <div className="text-center py-6">
                 <div className="inline-flex bg-blue-100 rounded-full p-3 mb-2"><Sparkles size={22} className="text-blue-700" /></div>
-                <p className="text-sm font-semibold text-gray-700">¡Hola! Soy Yacz 👋</p>
-                <p className="text-xs text-gray-500 mt-1 mb-4">Pregúntame lo que quieras sobre tu flota</p>
+                <p className="text-sm font-semibold text-gray-700">¡Hola! Soy Yacz 😊</p>
+                <p className="text-xs text-gray-500 mt-1 mb-4">Estoy encantada de ayudarte. Pregúntame lo que quieras sobre tu flota 💙</p>
                 <div className="space-y-2">
                   {SUGERENCIAS.map(s => (
                     <button key={s} onClick={() => send(s)}
