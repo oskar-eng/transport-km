@@ -2,7 +2,9 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Truck, FileText, Upload, Loader2, CheckCircle2, Save } from "lucide-react";
+import { ArrowLeft, Truck, FileText, Upload, Loader2, CheckCircle2, Save, History, Package, Wrench, Receipt, Fuel, AlertOctagon } from "lucide-react";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 import { UNIT_DOC_TYPES, NO_EXPIRY_TYPES, unitDocStatus, unitHabilitado, type UnitDoc } from "@/lib/vehicleDocsFixed";
 
 interface Unit {
@@ -12,11 +14,12 @@ interface Unit {
   localType: string | null; status: string; photoUrl: string | null; notes: string | null;
   documents: UnitDoc[];
 }
+interface BitacoraItem { tipo: string; fecha: string; titulo: string; detalle: string; monto: number | null }
 
-export default function UnitDetailClient({ unit, userRole }: { unit: Unit; userRole: string }) {
+export default function UnitDetailClient({ unit, bitacora, userRole }: { unit: Unit; bitacora: BitacoraItem[]; userRole: string }) {
   const router = useRouter();
   const canEdit = ["ADMINISTRADOR", "JEFE_TRANSPORTE"].includes(userRole);
-  const [tab, setTab] = useState<"basicos" | "documentos">("basicos");
+  const [tab, setTab] = useState<"basicos" | "documentos" | "bitacora">("basicos");
   const [docs, setDocs] = useState<UnitDoc[]>(unit.documents);
   const habilitado = unitHabilitado(docs);
 
@@ -35,7 +38,7 @@ export default function UnitDetailClient({ unit, userRole }: { unit: Unit; userR
 
       {/* Tabs */}
       <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit mb-6">
-        {([["basicos","Datos Básicos",Truck],["documentos","Documentos",FileText]] as const).map(([k, label, Icon]) => (
+        {([["basicos","Datos Básicos",Truck],["documentos","Documentos",FileText],["bitacora","Bitácora",History]] as const).map(([k, label, Icon]) => (
           <button key={k} onClick={() => setTab(k)}
             className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${tab === k ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>
             <Icon size={15} /> {label}
@@ -43,9 +46,58 @@ export default function UnitDetailClient({ unit, userRole }: { unit: Unit; userR
         ))}
       </div>
 
-      {tab === "basicos"
-        ? <BasicData unit={unit} canEdit={canEdit} onSaved={() => router.refresh()} />
-        : <Documents unitId={unit.id} docs={docs} setDocs={setDocs} canEdit={canEdit} />}
+      {tab === "basicos" && <BasicData unit={unit} canEdit={canEdit} onSaved={() => router.refresh()} />}
+      {tab === "documentos" && <Documents unitId={unit.id} docs={docs} setDocs={setDocs} canEdit={canEdit} />}
+      {tab === "bitacora" && <Bitacora items={bitacora} />}
+    </div>
+  );
+}
+
+/* ─────────── Bitácora ─────────── */
+const BITACORA_CFG: Record<string, { icon: typeof Package; color: string; label: string }> = {
+  orden:         { icon: Package,      color: "bg-blue-100 text-blue-700",     label: "Orden" },
+  mantenimiento: { icon: Wrench,       color: "bg-amber-100 text-amber-700",   label: "Mantenimiento" },
+  gasto:         { icon: Receipt,      color: "bg-slate-100 text-slate-700",   label: "Gasto" },
+  combustible:   { icon: Fuel,         color: "bg-indigo-100 text-indigo-700", label: "Combustible" },
+  sancion:       { icon: AlertOctagon, color: "bg-red-100 text-red-700",       label: "Sanción" },
+};
+
+function Bitacora({ items }: { items: BitacoraItem[] }) {
+  if (items.length === 0) {
+    return (
+      <div className="bg-white rounded-xl shadow-sm p-10 text-center text-gray-400">
+        <History size={36} className="mx-auto mb-2 opacity-30" />
+        <p className="text-sm">Sin movimientos registrados para esta unidad</p>
+      </div>
+    );
+  }
+  return (
+    <div className="bg-white rounded-xl shadow-sm p-5">
+      <h2 className="text-lg font-bold text-gray-900 mb-4">Bitácora de la unidad</h2>
+      <div className="relative">
+        <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200" />
+        <div className="space-y-4">
+          {items.map((it, i) => {
+            const cfg = BITACORA_CFG[it.tipo] ?? BITACORA_CFG.gasto;
+            const Icon = cfg.icon;
+            return (
+              <div key={i} className="flex items-start gap-4 relative">
+                <div className={`z-10 mt-0.5 rounded-full flex items-center justify-center w-8 h-8 shrink-0 ${cfg.color}`}>
+                  <Icon size={15} />
+                </div>
+                <div className="flex-1 pb-1">
+                  <div className="flex items-center justify-between flex-wrap gap-1">
+                    <p className="text-sm font-semibold text-gray-900">{it.titulo}</p>
+                    <span className="text-xs text-gray-400">{format(new Date(it.fecha), "dd/MM/yyyy", { locale: es })}</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-0.5">{it.detalle}</p>
+                  {it.monto != null && <p className="text-xs font-semibold text-gray-700 mt-0.5">S/ {it.monto.toLocaleString("es-PE", { minimumFractionDigits: 2 })}</p>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
