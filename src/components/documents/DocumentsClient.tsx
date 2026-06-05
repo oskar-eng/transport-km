@@ -1,8 +1,8 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { format, differenceInDays } from "date-fns";
 import { es } from "date-fns/locale";
-import { Plus, Pencil, Trash2, FileText, AlertTriangle, CheckCircle2, XCircle, Filter } from "lucide-react";
+import { Plus, Pencil, Trash2, FileText, AlertTriangle, CheckCircle2, XCircle, Filter, Upload, Loader2, X } from "lucide-react";
 
 const DOC_TYPES: Record<string, string> = {
   SOAT:             "SOAT",
@@ -40,8 +40,28 @@ export default function DocumentsClient({ docs: initial, units, userRole }: { do
   const [error, setError]       = useState("");
   const [filterStatus, setFilterStatus] = useState("TODOS");
   const [filterUnit, setFilterUnit]     = useState("TODOS");
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const canEdit = ["ADMINISTRADOR", "JEFE_TRANSPORTE", "SUPERVISOR"].includes(userRole);
+
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true); setError("");
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("folder", "documents");
+    const res = await fetch("/api/upload", { method: "POST", body: fd });
+    const data = await res.json();
+    setUploading(false);
+    if (res.ok) {
+      setForm((p) => ({ ...p, fileUrl: data.url }));
+    } else {
+      setError(data.error ?? "Error al subir el archivo");
+    }
+    if (fileRef.current) fileRef.current.value = "";
+  }
 
   function set(f: string, v: string) { setForm((p) => ({ ...p, [f]: v })); }
 
@@ -287,10 +307,26 @@ export default function DocumentsClient({ docs: initial, units, userRole }: { do
               </div>
 
               <div className="col-span-2">
-                <label className="text-xs font-semibold text-gray-700 block mb-1">URL del archivo (PDF)</label>
-                <input value={form.fileUrl} onChange={(e) => set("fileUrl", e.target.value)}
-                  placeholder="https://... o ruta del archivo"
-                  className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <label className="text-xs font-semibold text-gray-700 block mb-1">Archivo del documento (PDF o imagen)</label>
+                {form.fileUrl ? (
+                  <div className="flex items-center gap-2 border border-green-200 bg-green-50 rounded-lg px-3 py-2">
+                    <FileText size={16} className="text-green-600 shrink-0" />
+                    <a href={form.fileUrl} target="_blank" rel="noopener noreferrer"
+                      className="text-sm text-green-700 font-medium hover:underline truncate flex-1">
+                      Archivo cargado ✓ — Ver
+                    </a>
+                    <button type="button" onClick={() => set("fileUrl", "")}
+                      className="text-gray-400 hover:text-red-600 shrink-0"><X size={16} /></button>
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
+                    className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-gray-300 rounded-lg px-3 py-3 text-sm text-gray-600 hover:border-blue-400 hover:text-blue-600 transition-colors disabled:opacity-60">
+                    {uploading
+                      ? <><Loader2 size={16} className="animate-spin" /> Subiendo archivo…</>
+                      : <><Upload size={16} /> Subir archivo (PDF / foto)</>}
+                  </button>
+                )}
+                <input ref={fileRef} type="file" accept="application/pdf,image/*" className="hidden" onChange={handleUpload} />
               </div>
 
               <div className="col-span-2">

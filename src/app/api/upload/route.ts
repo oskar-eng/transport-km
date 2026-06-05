@@ -16,6 +16,8 @@ export async function POST(req: NextRequest) {
 
   const formData = await req.formData();
   const file = formData.get("file") as File | null;
+  // Carpeta destino: "units" (fotos) o "documents" (PDFs/imágenes de docs)
+  const folder = (formData.get("folder") as string) || "units";
   if (!file) return NextResponse.json({ error: "No se recibió archivo" }, { status: 400 });
 
   const bytes = await file.arrayBuffer();
@@ -29,10 +31,11 @@ export async function POST(req: NextRequest) {
     const form = new FormData();
     form.append("file", dataUri);
     form.append("upload_preset", "transport_km");
-    form.append("folder", "transport-km");
+    form.append("folder", `transport-km/${folder}`);
 
+    // "auto" acepta imágenes Y PDFs/archivos
     const res = await fetch(
-      `https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload`,
+      `https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME}/auto/upload`,
       { method: "POST", body: form }
     );
     const data = await res.json();
@@ -44,9 +47,10 @@ export async function POST(req: NextRequest) {
   const { writeFile, mkdir } = await import("fs/promises");
   const path = await import("path");
   const ext  = file.name.split(".").pop()?.toLowerCase() ?? "jpg";
-  const name = `unit_${Date.now()}.${ext}`;
-  const dir  = path.join(process.cwd(), "public", "uploads", "units");
+  const prefix = folder === "documents" ? "doc" : "unit";
+  const name = `${prefix}_${Date.now()}.${ext}`;
+  const dir  = path.join(process.cwd(), "public", "uploads", folder);
   await mkdir(dir, { recursive: true });
   await writeFile(path.join(dir, name), buffer);
-  return NextResponse.json({ url: `/uploads/units/${name}` });
+  return NextResponse.json({ url: `/uploads/${folder}/${name}` });
 }
