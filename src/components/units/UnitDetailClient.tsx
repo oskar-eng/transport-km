@@ -6,6 +6,7 @@ import { ArrowLeft, Truck, FileText, Upload, Loader2, CheckCircle2, Save, Histor
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { UNIT_DOC_TYPES, NO_EXPIRY_TYPES, unitDocStatus, unitHabilitado, type UnitDoc } from "@/lib/vehicleDocsFixed";
+import FilePreview from "@/components/common/FilePreview";
 
 interface Unit {
   id: string; plate: string; brand: string | null; model: string; year: number;
@@ -213,6 +214,7 @@ function BasicData({ unit, canEdit, onSaved }: { unit: Unit; canEdit: boolean; o
 function Documents({ unitId, docs, setDocs, canEdit }: {
   unitId: string; docs: UnitDoc[]; setDocs: (d: UnitDoc[]) => void; canEdit: boolean;
 }) {
+  const [preview, setPreview] = useState<{ url: string; name: string } | null>(null);
   return (
     <div className="bg-white rounded-xl shadow-sm overflow-hidden">
       <div className="overflow-x-auto">
@@ -228,18 +230,20 @@ function Documents({ unitId, docs, setDocs, canEdit }: {
             {UNIT_DOC_TYPES.map(t => (
               <DocRow key={t.key} type={t.key} label={t.label} unitId={unitId}
                 doc={docs.find(d => d.type === t.key)} canEdit={canEdit}
+                onPreview={(url) => setPreview({ url, name: t.label })}
                 onSaved={(saved) => setDocs([...docs.filter(d => d.type !== t.key), saved])} />
             ))}
           </tbody>
         </table>
       </div>
+      {preview && <FilePreview url={preview.url} filename={preview.name} title="Documento de la unidad" onClose={() => setPreview(null)} />}
     </div>
   );
 }
 
-function DocRow({ type, label, unitId, doc, canEdit, onSaved }: {
+function DocRow({ type, label, unitId, doc, canEdit, onSaved, onPreview }: {
   type: string; label: string; unitId: string;
-  doc?: UnitDoc; canEdit: boolean; onSaved: (d: UnitDoc) => void;
+  doc?: UnitDoc; canEdit: boolean; onSaved: (d: UnitDoc) => void; onPreview: (url: string) => void;
 }) {
   const noExpiry = NO_EXPIRY_TYPES.includes(type);
   const [expiry, setExpiry] = useState(doc?.expiryDate ? doc.expiryDate.slice(0, 10) : "");
@@ -287,10 +291,10 @@ function DocRow({ type, label, unitId, doc, canEdit, onSaved }: {
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
           {fileUrl && (
-            <a href={fileUrl} target="_blank" rel="noopener noreferrer"
+            <button type="button" onClick={() => onPreview(fileUrl)}
               className="text-xs text-blue-600 hover:underline flex items-center gap-1">
               <CheckCircle2 size={12} className="text-green-600" /> Ver
-            </a>
+            </button>
           )}
           {canEdit && (
             <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading || saving}

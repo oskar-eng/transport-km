@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, User, FileText, Upload, Loader2, CheckCircle2, X, Save, Truck } from "lucide-react";
 import { DRIVER_DOC_TYPES, docStatus, driverHabilitado, type DriverDoc } from "@/lib/driverDocs";
+import FilePreview from "@/components/common/FilePreview";
 
 const LICENSE_CATEGORIES = ["A-I","A-IIa","A-IIb","A-IIIa","A-IIIb","A-IIIc","B-I","B-IIa","B-IIb","B-IIc"];
 
@@ -182,6 +183,8 @@ function BasicData({ driver, canEdit, onSaved }: { driver: Driver; canEdit: bool
 function Documents({ driverProfileId, docs, setDocs, canEdit }: {
   driverProfileId: string | null; docs: DriverDoc[]; setDocs: (d: DriverDoc[]) => void; canEdit: boolean;
 }) {
+  const [preview, setPreview] = useState<{ url: string; name: string } | null>(null);
+
   if (!driverProfileId) {
     return (
       <div className="bg-white rounded-xl shadow-sm p-10 text-center text-gray-400">
@@ -205,6 +208,7 @@ function Documents({ driverProfileId, docs, setDocs, canEdit }: {
             {DRIVER_DOC_TYPES.map(t => (
               <DocRow key={t.key} type={t.key} label={t.label} driverProfileId={driverProfileId}
                 doc={docs.find(d => d.type === t.key)} canEdit={canEdit}
+                onPreview={(url) => setPreview({ url, name: t.label })}
                 onSaved={(saved) => {
                   const others = docs.filter(d => d.type !== t.key);
                   setDocs([...others, saved]);
@@ -213,13 +217,14 @@ function Documents({ driverProfileId, docs, setDocs, canEdit }: {
           </tbody>
         </table>
       </div>
+      {preview && <FilePreview url={preview.url} filename={preview.name} title="Documento del conductor" onClose={() => setPreview(null)} />}
     </div>
   );
 }
 
-function DocRow({ type, label, driverProfileId, doc, canEdit, onSaved }: {
+function DocRow({ type, label, driverProfileId, doc, canEdit, onSaved, onPreview }: {
   type: string; label: string; driverProfileId: string;
-  doc?: DriverDoc; canEdit: boolean; onSaved: (d: DriverDoc) => void;
+  doc?: DriverDoc; canEdit: boolean; onSaved: (d: DriverDoc) => void; onPreview: (url: string) => void;
 }) {
   const [expiry, setExpiry] = useState(doc?.expiryDate ? doc.expiryDate.slice(0, 10) : "");
   const [fileUrl, setFileUrl] = useState(doc?.fileUrl ?? "");
@@ -264,10 +269,10 @@ function DocRow({ type, label, driverProfileId, doc, canEdit, onSaved }: {
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
           {fileUrl && (
-            <a href={fileUrl} target="_blank" rel="noopener noreferrer"
+            <button type="button" onClick={() => onPreview(fileUrl)}
               className="text-xs text-blue-600 hover:underline flex items-center gap-1">
               <CheckCircle2 size={12} className="text-green-600" /> Ver
-            </a>
+            </button>
           )}
           {canEdit && (
             <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading || saving}
