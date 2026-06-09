@@ -322,7 +322,9 @@ export default function FuelClient({
           { label: "Total cargas",      value: records.length,                         color: "bg-blue-500" },
           { label: "Galones totales",   value: `${totalLiters.toLocaleString()} Gal`,  color: "bg-indigo-500" },
           { label: "Gasto total",       value: totalCost > 0 ? `S/ ${totalCost.toLocaleString("es-PE", { maximumFractionDigits: 0 })}` : "—", color: "bg-emerald-500" },
-          { label: "Rendimiento prom.", value: avgKmL ? `${avgKmL} km/Gal` : "—",     color: "bg-purple-500" },
+          driverCard
+            ? { label: "Saldo disponible", value: `S/ ${driverCard.disponible.toLocaleString("es-PE", { maximumFractionDigits: 0 })}`, color: (driverCard.disponible / (driverCard.monthlyLimit || 1)) <= 0.15 ? "bg-red-500" : "bg-emerald-500" }
+            : { label: "Rendimiento prom.", value: avgKmL ? `${avgKmL} km/Gal` : "—",     color: "bg-purple-500" },
         ].map(k => (
           <div key={k.label} className="bg-white rounded-xl shadow-sm p-4 flex items-center gap-3">
             <div className={`${k.color} p-2.5 rounded-xl shrink-0`}><Fuel size={18} className="text-white" /></div>
