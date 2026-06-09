@@ -18,16 +18,17 @@ export async function GET(req: NextRequest) {
 
   // Calcular rendimiento km/L entre cargas consecutivas por unidad.
   // Solo cuentan las cargas de TRACTO (el generador no tiene odómetro real).
+  const esGenerador = (r: { loadType: string; odometer: number }) => r.loadType === "GENERADOR" || r.odometer <= 100;
   const byUnit: Record<string, typeof records> = {};
   for (const r of records) {
-    if (r.loadType === "GENERADOR") continue;
+    if (esGenerador(r)) continue;
     if (!byUnit[r.unitId]) byUnit[r.unitId] = [];
     byUnit[r.unitId].push(r);
   }
 
   const withEfficiency = records.map((r) => {
     let kmPerLiter: number | null = null;
-    if (r.loadType !== "GENERADOR") {
+    if (!esGenerador(r)) {
       const unitRecords = byUnit[r.unitId];
       const idx = unitRecords.findIndex((x) => x.id === r.id);
       if (idx > 0) {

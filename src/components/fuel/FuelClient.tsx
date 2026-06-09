@@ -333,7 +333,7 @@ export default function FuelClient({
                             <p className="text-xs text-gray-400">{r.unit.model}</p>
                           </td>
                           <td className="px-4 py-3">
-                            {r.loadType === "GENERADOR" ? (
+                            {(r.loadType === "GENERADOR" || r.odometer <= GENERADOR_KM_MAX) ? (
                               <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">⚡ Generador</span>
                             ) : (
                               <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">🚛 Tracto</span>
