@@ -50,7 +50,12 @@ export default async function DashboardPage() {
   const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
   const monthEvents = await prisma.serviceEvent.findMany({
-    where: { timestamp: { gte: firstOfMonth }, odometer: { not: null } },
+    where: {
+      timestamp: { gte: firstOfMonth },
+      odometer: { not: null },
+      // El conductor ve solo los km de SUS órdenes
+      ...(isDriver ? { order: { driverId: user.id } } : {}),
+    },
     select: { serviceOrderId: true, odometer: true, timestamp: true },
     orderBy: { timestamp: "asc" },
   });
