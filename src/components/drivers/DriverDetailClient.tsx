@@ -2,9 +2,13 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, User, FileText, Upload, Loader2, CheckCircle2, X, Save, Truck } from "lucide-react";
+import { ArrowLeft, User, FileText, Upload, Loader2, CheckCircle2, X, Save, Truck, Gauge } from "lucide-react";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 import { DRIVER_DOC_TYPES, docStatus, driverHabilitado, type DriverDoc } from "@/lib/driverDocs";
 import FilePreview from "@/components/common/FilePreview";
+
+interface Trip { id: string; orderNumber: string; type: string; status: string; clientName: string; date: string; plate: string; model: string; km: number; hasData: boolean }
 
 const LICENSE_CATEGORIES = ["A-I","A-IIa","A-IIb","A-IIIa","A-IIIb","A-IIIc","B-I","B-IIa","B-IIb","B-IIc"];
 
@@ -21,10 +25,10 @@ interface Driver {
   activeUnit: { id: string; plate: string; model: string } | null;
 }
 
-export default function DriverDetailClient({ driver, userRole }: { driver: Driver; userRole: string }) {
+export default function DriverDetailClient({ driver, userRole, trips = [], kmTotal = 0, kmMes = 0 }: { driver: Driver; userRole: string; trips?: Trip[]; kmTotal?: number; kmMes?: number }) {
   const router = useRouter();
   const canEdit = ["ADMINISTRADOR", "JEFE_TRANSPORTE", "SUPERVISOR"].includes(userRole);
-  const [tab, setTab] = useState<"basicos" | "documentos">("basicos");
+  const [tab, setTab] = useState<"basicos" | "documentos" | "recorridos">("basicos");
 
   // Estado de documentos (local)
   const [docs, setDocs] = useState<DriverDoc[]>(driver.documents);
@@ -45,7 +49,7 @@ export default function DriverDetailClient({ driver, userRole }: { driver: Drive
 
       {/* Tabs */}
       <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit mb-6">
-        {([["basicos","Datos Básicos",User],["documentos","Documentos",FileText]] as const).map(([k, label, Icon]) => (
+        {([["basicos","Datos Básicos",User],["documentos","Documentos",FileText],["recorridos","Recorridos",Gauge]] as const).map(([k, label, Icon]) => (
           <button key={k} onClick={() => setTab(k)}
             className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${tab === k ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>
             <Icon size={15} /> {label}
@@ -53,9 +57,55 @@ export default function DriverDetailClient({ driver, userRole }: { driver: Drive
         ))}
       </div>
 
-      {tab === "basicos"
-        ? <BasicData driver={driver} canEdit={canEdit} onSaved={() => router.refresh()} />
-        : <Documents driverProfileId={driver.profile?.id ?? null} docs={docs} setDocs={setDocs} canEdit={canEdit} />}
+      {tab === "basicos" && <BasicData driver={driver} canEdit={canEdit} onSaved={() => router.refresh()} />}
+      {tab === "documentos" && <Documents driverProfileId={driver.profile?.id ?? null} docs={docs} setDocs={setDocs} canEdit={canEdit} />}
+      {tab === "recorridos" && <Recorridos trips={trips} kmTotal={kmTotal} kmMes={kmMes} />}
+    </div>
+  );
+}
+
+/* ─────────── Recorridos (km por orden) ─────────── */
+function Recorridos({ trips, kmTotal, kmMes }: { trips: Trip[]; kmTotal: number; kmMes: number }) {
+  const km = (n: number) => `${n.toLocaleString("es-PE")} km`;
+  const STATUS: Record<string, { label: string; color: string }> = {
+    ACTIVO: { label: "Activo", color: "bg-blue-100 text-blue-700" },
+    COMPLETADO: { label: "Completado", color: "bg-green-100 text-green-700" },
+    CANCELADO: { label: "Cancelado", color: "bg-gray-100 text-gray-600" },
+  };
+  return (
+    <div>
+      <div className="grid grid-cols-3 gap-4 mb-5">
+        {[
+          { label: "Km recorridos (total)", value: km(kmTotal), color: "bg-purple-500" },
+          { label: "Km este mes", value: km(kmMes), color: "bg-emerald-500" },
+          { label: "Órdenes", value: trips.length, color: "bg-blue-500" },
+        ].map(k => (
+          <div key={k.label} className="bg-white rounded-xl shadow-sm p-4 flex items-center gap-3">
+            <div className={`${k.color} p-2.5 rounded-xl shrink-0`}><Gauge size={18} className="text-white" /></div>
+            <div><p className="text-lg font-bold text-gray-900 leading-tight">{k.value}</p><p className="text-xs text-gray-500">{k.label}</p></div>
+          </div>
+        ))}
+      </div>
+      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b"><tr>{["Orden","Fecha","Unidad","Cliente","Estado","Km recorridos"].map(h => <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">{h}</th>)}</tr></thead>
+            <tbody className="divide-y">
+              {trips.length === 0 ? <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">Este conductor no tiene órdenes registradas</td></tr> :
+                trips.map(t => (
+                  <tr key={t.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3"><Link href={`/orders/${t.id}`} className="text-blue-700 font-semibold font-mono hover:underline">OS-{t.orderNumber}</Link></td>
+                    <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{format(new Date(t.date), "dd/MM/yyyy", { locale: es })}</td>
+                    <td className="px-4 py-3 font-mono font-semibold text-gray-900">{t.plate}</td>
+                    <td className="px-4 py-3 text-gray-500 text-xs">{t.clientName}</td>
+                    <td className="px-4 py-3"><span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS[t.status]?.color ?? "bg-gray-100"}`}>{STATUS[t.status]?.label ?? t.status}</span></td>
+                    <td className="px-4 py-3 font-bold text-gray-900">{t.hasData ? km(t.km) : <span className="text-gray-300 font-normal text-xs">sin registro</span>}</td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }

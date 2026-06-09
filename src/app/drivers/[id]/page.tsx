@@ -28,6 +28,33 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
 
   if (!conductor || conductor.role !== "CONDUCTOR") notFound();
 
+  // Órdenes del conductor con km recorridos (último odómetro - primero)
+  const tripOrders = await prisma.serviceOrder.findMany({
+    where: { driverId: id },
+    include: {
+      unit: { select: { plate: true, model: true } },
+      events: { where: { odometer: { not: null } }, orderBy: { timestamp: "asc" }, select: { odometer: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  const now = new Date();
+  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const trips = tripOrders.map(o => {
+    const odos = o.events.map(e => e.odometer!).filter(n => n != null);
+    const km = odos.length >= 2 ? Math.max(0, odos[odos.length - 1] - odos[0]) : 0;
+    return {
+      id: o.id, orderNumber: o.orderNumber, type: o.type, status: o.status,
+      clientName: o.clientName, date: o.createdAt.toISOString(),
+      plate: o.unit?.plate ?? "—", model: o.unit?.model ?? "", km, hasData: odos.length >= 2,
+    };
+  });
+  const kmTotal = trips.reduce((s, t) => s + t.km, 0);
+  const kmMes = tripOrders.reduce((s, o) => {
+    if (o.createdAt < firstOfMonth) return s;
+    const odos = o.events.map(e => e.odometer!).filter(n => n != null);
+    return s + (odos.length >= 2 ? Math.max(0, odos[odos.length - 1] - odos[0]) : 0);
+  }, 0);
+
   const profile = conductor.driverProfile;
 
   const driver = {
@@ -59,7 +86,7 @@ export default async function DriverDetailPage({ params }: { params: Promise<{ i
 
   return (
     <AppShell>
-      <DriverDetailClient driver={driver} userRole={user.role} />
+      <DriverDetailClient driver={driver} userRole={user.role} trips={trips} kmTotal={kmTotal} kmMes={kmMes} />
     </AppShell>
   );
 }
