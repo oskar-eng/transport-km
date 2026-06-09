@@ -143,10 +143,10 @@ export default function FuelClient({
       if (slot === "DESPACHO") {
         if (data.liters   != null) next.liters   = String(data.liters);
         if (data.fuelType)         next.fuelType = data.fuelType;
-        if (data.odometer != null) next.odometer = String(data.odometer); // km automático del vale
         if (data.station)          next.station  = data.station;
       } else { // PAGO
         if (data.totalCost != null) next.totalCost = String(data.totalCost);
+        if (data.odometer  != null) next.odometer  = String(data.odometer); // km del comprobante de pago
         if (data.driverName)        next.driverName = data.driverName;
         if (data.driverDni)         next.driverDni  = data.driverDni;
       }
@@ -445,12 +445,13 @@ export default function FuelClient({
                                 {slot === "DESPACHO" && (
                                   <>
                                     {form.liters && <p>⛽ <strong>{form.liters} Gal</strong></p>}
-                                    {form.odometer && <p>🛣️ <strong>{Number(form.odometer).toLocaleString()} km</strong></p>}
+                                    {form.station && <p>🏪 <strong>{form.station}</strong></p>}
                                   </>
                                 )}
                                 {slot === "PAGO" && (
                                   <>
                                     {form.totalCost && <p>💰 <strong>S/ {form.totalCost}</strong></p>}
+                                    {form.odometer && <p>🛣️ <strong>{Number(form.odometer).toLocaleString()} km</strong></p>}
                                     {form.driverName && <p>👤 <strong>{form.driverName}</strong></p>}
                                   </>
                                 )}
