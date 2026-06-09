@@ -68,11 +68,14 @@ export default function KilometrajeClient({ orders, isDriver }: { orders: Order[
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(filtered.map(o => ({
         Orden: `OS-${o.orderNumber}`, Fecha: format(new Date(o.date), "dd/MM/yyyy"), Tipo: o.type,
-        Estado: STATUS[o.status]?.label ?? o.status, Cliente: o.clientName, Conductor: o.driverName,
+        Estado: STATUS[o.status]?.label ?? o.status, Cliente: o.clientName,
+        ...(isDriver ? {} : { Conductor: o.driverName }),
         Unidad: o.plate, "Km recorridos": o.km,
       }))), "Por Orden");
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(porConductor.map(c => ({ Conductor: c.name, Órdenes: c.ordenes, "Km recorridos": c.km }))), "Por Conductor");
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(porUnidad.map(u => ({ Unidad: u.plate, Modelo: u.model, Órdenes: u.ordenes, "Km recorridos": u.km }))), "Por Unidad");
+      if (!isDriver) {
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(porConductor.map(c => ({ Conductor: c.name, Órdenes: c.ordenes, "Km recorridos": c.km }))), "Por Conductor");
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(porUnidad.map(u => ({ Unidad: u.plate, Modelo: u.model, Órdenes: u.ordenes, "Km recorridos": u.km }))), "Por Unidad");
+      }
       XLSX.writeFile(wb, `kilometraje_${new Date().toISOString().slice(0, 10)}.xlsx`);
     } finally { setExporting(false); }
   }
@@ -112,7 +115,7 @@ export default function KilometrajeClient({ orders, isDriver }: { orders: Order[
         )}
         <div className="relative flex-1 min-w-[180px] max-w-xs">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar placa, conductor, orden…"
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder={isDriver ? "Buscar placa u orden…" : "Buscar placa, conductor, orden…"}
             className="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
         </div>
         <select value={mes} onChange={e => setMes(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 capitalize">
@@ -130,14 +133,14 @@ export default function KilometrajeClient({ orders, isDriver }: { orders: Order[
           {/* Por Orden */}
           {tab === "orden" && (
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b"><tr>{["Orden", "Fecha", "Conductor", "Unidad", "Cliente", "Estado", "Km recorridos"].map(h => <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">{h}</th>)}</tr></thead>
+              <thead className="bg-gray-50 border-b"><tr>{["Orden", "Fecha", ...(isDriver ? [] : ["Conductor"]), "Unidad", "Cliente", "Estado", "Km recorridos"].map(h => <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">{h}</th>)}</tr></thead>
               <tbody className="divide-y">
-                {filtered.length === 0 ? <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-400">Sin datos</td></tr> :
+                {filtered.length === 0 ? <tr><td colSpan={isDriver ? 6 : 7} className="px-4 py-8 text-center text-gray-400">Sin datos</td></tr> :
                   filtered.map(o => (
                     <tr key={o.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 font-mono font-semibold text-gray-800">OS-{o.orderNumber}</td>
                       <td className="px-4 py-3 text-gray-600 whitespace-nowrap">{format(new Date(o.date), "dd/MM/yyyy", { locale: es })}</td>
-                      <td className="px-4 py-3 text-gray-700">{o.driverName}</td>
+                      {!isDriver && <td className="px-4 py-3 text-gray-700">{o.driverName}</td>}
                       <td className="px-4 py-3 font-mono font-semibold text-gray-900">{o.plate}</td>
                       <td className="px-4 py-3 text-gray-500 text-xs">{o.clientName}</td>
                       <td className="px-4 py-3"><span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS[o.status]?.color ?? "bg-gray-100"}`}>{STATUS[o.status]?.label ?? o.status}</span></td>
