@@ -5,7 +5,7 @@ import { signOut, useSession } from "next-auth/react";
 import {
   LayoutDashboard, Package, Truck, Users, BarChart3, LogOut, Menu, X,
   MapPin, FileText, Fuel, Wrench, Circle, DollarSign, ChevronLeft, ChevronRight, UserRound, Receipt, AlertOctagon, History, Container, ClipboardList,
-  ChevronDown, Database, Settings, Wallet, ClipboardCheck, CalendarClock, Boxes, ShoppingCart, FileBarChart, AlertTriangle, ScrollText, Layers, CreditCard,
+  ChevronDown, Database, Settings, Wallet, ClipboardCheck, CalendarClock, Boxes, ShoppingCart, FileBarChart, AlertTriangle, ScrollText, Layers, CreditCard, Gauge,
 } from "lucide-react";
 import { useEffect } from "react";
 import { useState } from "react";
@@ -20,6 +20,7 @@ const navGroups: { title: string | null; key: string; icon: typeof Package | nul
     { href: "/dashboard",   label: "Dashboard",     icon: LayoutDashboard, roles: ["all"] },
     { href: "/orders",      label: "Órdenes",       icon: Package,         roles: ["all"] },
     { href: "/tracking",    label: "Seguimiento",   icon: MapPin,          roles: ["ADMINISTRADOR", "JEFE_TRANSPORTE", "SUPERVISOR"] },
+    { href: "/kilometraje", label: "Kilometraje",   icon: Gauge,           roles: ["all"] },
   ]},
   { title: "Actualización de Datos", key: "datos", icon: Database, items: [
     { href: "/units",       label: "Vehículos",     icon: Truck,           roles: ALL },
