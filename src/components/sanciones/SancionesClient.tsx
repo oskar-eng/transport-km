@@ -91,8 +91,35 @@ export default function SancionesClient({ sanciones: initial, units, drivers, us
     setSanciones(p => p.filter(s => s.id !== id));
   }
 
+  const [tab, setTab] = useState<"lista" | "unidad" | "conductor">("lista");
   const filtered = useMemo(() => sanciones.filter(s => filterStatus === "TODOS" || s.status === filterStatus), [sanciones, filterStatus]);
   const totalPendiente = sanciones.filter(s => s.status === "PENDIENTE").reduce((sum, s) => sum + (s.amount ?? 0), 0);
+
+  // Resumen: unidades con papeletas
+  const porUnidad = useMemo(() => {
+    const map: Record<string, { plate: string; model: string; total: number; pendientes: number; monto: number; montoPend: number }> = {};
+    for (const s of sanciones) {
+      if (!s.unitId || !s.unit) continue;
+      const k = s.unitId;
+      if (!map[k]) map[k] = { plate: s.unit.plate, model: s.unit.model, total: 0, pendientes: 0, monto: 0, montoPend: 0 };
+      map[k].total += 1; map[k].monto += s.amount ?? 0;
+      if (s.status === "PENDIENTE") { map[k].pendientes += 1; map[k].montoPend += s.amount ?? 0; }
+    }
+    return Object.entries(map).map(([id, v]) => ({ id, ...v })).sort((a, b) => b.total - a.total);
+  }, [sanciones]);
+
+  // Resumen: conductores con papeletas
+  const porConductor = useMemo(() => {
+    const map: Record<string, { name: string; total: number; pendientes: number; monto: number; montoPend: number }> = {};
+    for (const s of sanciones) {
+      if (!s.driverId || !s.driver) continue;
+      const k = s.driverId;
+      if (!map[k]) map[k] = { name: s.driver.name, total: 0, pendientes: 0, monto: 0, montoPend: 0 };
+      map[k].total += 1; map[k].monto += s.amount ?? 0;
+      if (s.status === "PENDIENTE") { map[k].pendientes += 1; map[k].montoPend += s.amount ?? 0; }
+    }
+    return Object.entries(map).map(([id, v]) => ({ id, ...v })).sort((a, b) => b.total - a.total);
+  }, [sanciones]);
 
   return (
     <div>
@@ -128,6 +155,61 @@ export default function SancionesClient({ sanciones: initial, units, drivers, us
         ))}
       </div>
 
+      {/* Pestañas */}
+      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit mb-4">
+        {([["lista", "Lista"], ["unidad", "Por Unidad"], ["conductor", "Por Conductor"]] as const).map(([t, label]) => (
+          <button key={t} onClick={() => setTab(t)} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${tab === t ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>{label}</button>
+        ))}
+      </div>
+
+      {/* ── Por Unidad ── */}
+      {tab === "unidad" && (
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b"><tr>{["Unidad","Papeletas","Pendientes","Monto total","Monto pendiente"].map(h => <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">{h}</th>)}</tr></thead>
+              <tbody className="divide-y">
+                {porUnidad.length === 0 ? <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400">Ninguna unidad tiene papeletas registradas</td></tr> :
+                  porUnidad.map(u => (
+                    <tr key={u.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3"><span className="font-mono font-semibold text-gray-900 flex items-center gap-1.5"><Truck size={13} className="text-gray-400" />{u.plate}</span><span className="text-xs text-gray-400">{u.model}</span></td>
+                      <td className="px-4 py-3 font-bold text-gray-800">{u.total}</td>
+                      <td className="px-4 py-3">{u.pendientes > 0 ? <span className="text-amber-700 font-semibold">{u.pendientes}</span> : <span className="text-gray-300">0</span>}</td>
+                      <td className="px-4 py-3 text-gray-700">{money(u.monto)}</td>
+                      <td className="px-4 py-3 font-semibold text-red-600">{u.montoPend > 0 ? money(u.montoPend) : "—"}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── Por Conductor ── */}
+      {tab === "conductor" && (
+        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b"><tr>{["Conductor","Papeletas","Pendientes","Monto total","Monto pendiente"].map(h => <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">{h}</th>)}</tr></thead>
+              <tbody className="divide-y">
+                {porConductor.length === 0 ? <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400">Ningún conductor tiene papeletas registradas</td></tr> :
+                  porConductor.map(c => (
+                    <tr key={c.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-3"><span className="text-gray-800 font-medium flex items-center gap-1.5"><UserRound size={13} className="text-gray-400" />{c.name}</span></td>
+                      <td className="px-4 py-3 font-bold text-gray-800">{c.total}</td>
+                      <td className="px-4 py-3">{c.pendientes > 0 ? <span className="text-amber-700 font-semibold">{c.pendientes}</span> : <span className="text-gray-300">0</span>}</td>
+                      <td className="px-4 py-3 text-gray-700">{money(c.monto)}</td>
+                      <td className="px-4 py-3 font-semibold text-red-600">{c.montoPend > 0 ? money(c.montoPend) : "—"}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── Lista ── */}
+      {tab === "lista" && (<>
       <div className="mb-4">
         <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
           className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
@@ -177,6 +259,7 @@ export default function SancionesClient({ sanciones: initial, units, drivers, us
           </div>
         </div>
       )}
+      </>)}
 
       {/* Modal formulario */}
       {showForm && (
