@@ -50,6 +50,8 @@ export default function FuelClient({
   const dispatchRef = useRef<HTMLInputElement>(null);
   const paymentRef  = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null); // visor de comprobantes en historial
+  const [detectedPlate, setDetectedPlate] = useState(""); // placa leída del comprobante
+  const [plateMatched, setPlateMatched]   = useState(false); // si coincidió con una unidad registrada
 
   const isDriver  = userRole === "CONDUCTOR";
   const canEdit   = ["ADMINISTRADOR", "JEFE_TRANSPORTE", "SUPERVISOR", "CONDUCTOR"].includes(userRole);
@@ -68,6 +70,7 @@ export default function FuelClient({
     setEditing(null);
     setForm({ ...EMPTY_FORM, unitId: defaultUnitId ?? "" });
     setSlots({ DESPACHO: { ...EMPTY_SLOT }, PAGO: { ...EMPTY_SLOT } });
+    setDetectedPlate(""); setPlateMatched(false);
     setError(""); setShowForm(true);
   }
   function openEdit(r: FuelRec) {
@@ -81,6 +84,7 @@ export default function FuelClient({
       receiptDispatchUrl: r.receiptDispatchUrl ?? "", receiptPaymentUrl: r.receiptPaymentUrl ?? "",
     });
     setSlots({ DESPACHO: { ...EMPTY_SLOT }, PAGO: { ...EMPTY_SLOT } });
+    setDetectedPlate(""); setPlateMatched(false);
     setError(""); setShowForm(true);
   }
 
@@ -126,10 +130,14 @@ export default function FuelClient({
     } catch { /* si falla la subida, igual usamos los datos extraídos */ }
 
     // 3) Combinar datos en el formulario según el tipo
+    if (data.plate) {
+      setDetectedPlate(String(data.plate).toUpperCase());
+      setPlateMatched(!!matchPlate(data.plate));
+    }
     setForm(f => {
       const next = { ...f };
       const match = matchPlate(data.plate);
-      if (match) next.unitId = match.id;
+      if (match) next.unitId = match.id; // selecciona la unidad automáticamente
       if (data.date) next.date = data.date;
 
       if (slot === "DESPACHO") {
@@ -473,6 +481,17 @@ export default function FuelClient({
                     <option value="">Seleccionar unidad</option>
                     {units.map(u => <option key={u.id} value={u.id}>{u.plate} — {u.model}</option>)}
                   </select>
+                  {/* Aviso de placa detectada en el comprobante */}
+                  {detectedPlate && plateMatched && form.unitId && (
+                    <p className="text-[11px] text-green-700 mt-1 flex items-center gap-1">
+                      <CheckCircle2 size={12} /> Unidad seleccionada automáticamente por la placa <strong>{detectedPlate}</strong>
+                    </p>
+                  )}
+                  {detectedPlate && !plateMatched && (
+                    <p className="text-[11px] text-orange-600 mt-1 flex items-center gap-1">
+                      <AlertCircle size={12} /> Placa detectada <strong>{detectedPlate}</strong>, pero no está registrada como unidad. Selecciónala manualmente o regístrala en Vehículos.
+                    </p>
+                  )}
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-gray-700 block mb-1">Fecha *</label>
