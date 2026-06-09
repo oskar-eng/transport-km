@@ -306,7 +306,7 @@ export default function FuelClient({
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 border-b">
                     <tr>
-                      {["Fecha","Unidad","Galones","Precio/Gal","Costo total","Odómetro","Rendimiento","Grifo","Comprob.",""].map(h => (
+                      {["Fecha","Unidad","Galones","Precio/Gal","Costo total","Odómetro","Rendimiento","Grifo","Conductor","Comprob.",""].map(h => (
                         <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -340,6 +340,14 @@ export default function FuelClient({
                             ) : <span className="text-gray-300 text-xs">—</span>}
                           </td>
                           <td className="px-4 py-3 text-gray-500 text-xs">{r.station ?? "—"}</td>
+                          <td className="px-4 py-3 text-xs">
+                            {r.driverName ? (
+                              <>
+                                <p className="text-gray-700 font-medium">{r.driverName}</p>
+                                {r.driverDni && <p className="text-gray-400">DNI {r.driverDni}</p>}
+                              </>
+                            ) : <span className="text-gray-300">—</span>}
+                          </td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-1">
                               {r.receiptDispatchUrl && (
