@@ -5,7 +5,7 @@ import { signOut, useSession } from "next-auth/react";
 import {
   LayoutDashboard, Package, Truck, Users, BarChart3, LogOut, Menu, X,
   MapPin, FileText, Fuel, Wrench, Circle, DollarSign, ChevronLeft, ChevronRight, UserRound, Receipt, AlertOctagon, History, Container, ClipboardList,
-  ChevronDown, Database, Settings, Wallet, ClipboardCheck, CalendarClock, Boxes, ShoppingCart, FileBarChart, AlertTriangle, ScrollText, Layers,
+  ChevronDown, Database, Settings, Wallet, ClipboardCheck, CalendarClock, Boxes, ShoppingCart, FileBarChart, AlertTriangle, ScrollText, Layers, CreditCard,
 } from "lucide-react";
 import { useEffect } from "react";
 import { useState } from "react";
@@ -45,9 +45,10 @@ const navGroups: { title: string | null; key: string; icon: typeof Package | nul
     { href: "/reportes-mantenimiento",                     label: "Reportes Mant.",      icon: FileBarChart,  roles: ALL },
   ]},
   { title: "Finanzas", key: "finanzas", icon: Wallet, items: [
-    { href: "/costs",       label: "Costos",        icon: DollarSign,      roles: ALL },
-    { href: "/gastos",      label: "Gastos",        icon: Receipt,         roles: [...ALL, "CONDUCTOR"] },
-    { href: "/sanciones",   label: "Sanciones",     icon: AlertOctagon,    roles: ALL },
+    { href: "/costs",       label: "Costos",            icon: DollarSign,  roles: ALL },
+    { href: "/tarjetas",    label: "Tarjetas Combustible", icon: CreditCard, roles: ALL },
+    { href: "/gastos",      label: "Gastos",            icon: Receipt,     roles: [...ALL, "CONDUCTOR"] },
+    { href: "/sanciones",   label: "Sanciones",         icon: AlertOctagon, roles: ALL },
   ]},
   { title: null, key: "", icon: null, items: [
     { href: "/bitacora",    label: "Bitácora",      icon: History,         roles: ALL },

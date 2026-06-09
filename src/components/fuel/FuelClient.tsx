@@ -33,10 +33,12 @@ interface FuelRec {
   unit: { plate: string; model: string };
 }
 
+interface DriverCard { holderName: string; monthlyLimit: number; consumido: number; disponible: number; cardNumber: string | null }
+
 export default function FuelClient({
-  records: initial, units, userRole, defaultUnitId,
+  records: initial, units, userRole, defaultUnitId, driverCard,
 }: {
-  records: FuelRec[]; units: Unit[]; userRole: string; defaultUnitId?: string;
+  records: FuelRec[]; units: Unit[]; userRole: string; defaultUnitId?: string; driverCard?: DriverCard | null;
 }) {
   const [records, setRecords]       = useState<FuelRec[]>(initial);
   const [showForm, setShowForm]     = useState(false);
@@ -287,6 +289,32 @@ export default function FuelClient({
           </button>
         )}
       </div>
+
+      {/* Banner de saldo de tarjeta — para conductores */}
+      {driverCard && (() => {
+        const pct = driverCard.monthlyLimit > 0 ? Math.min(100, (driverCard.disponible / driverCard.monthlyLimit) * 100) : 0;
+        const low = pct <= 15;
+        const fmt = (n: number) => `S/ ${n.toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        return (
+          <div className={`mb-6 rounded-2xl p-5 text-white bg-gradient-to-br ${low ? "from-red-600 to-red-800" : "from-blue-700 to-blue-900"}`}>
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <p className="text-white/70 text-xs uppercase tracking-wide">Tu tarjeta Petrothor{driverCard.cardNumber ? ` · ${driverCard.cardNumber}` : ""}</p>
+                <p className="text-3xl font-extrabold mt-1">{fmt(driverCard.disponible)}</p>
+                <p className="text-white/70 text-xs mt-0.5">disponible de {fmt(driverCard.monthlyLimit)} este mes</p>
+              </div>
+              <div className="text-right">
+                <p className="text-white/70 text-xs">Consumido</p>
+                <p className="text-lg font-bold">{fmt(driverCard.consumido)}</p>
+              </div>
+            </div>
+            <div className="w-full h-2.5 bg-white/20 rounded-full overflow-hidden mt-3">
+              <div className="h-full rounded-full bg-white" style={{ width: `${pct}%` }} />
+            </div>
+            {low && <p className="text-xs mt-2 font-medium">⚠️ Saldo bajo, coordina la recarga.</p>}
+          </div>
+        );
+      })()}
 
       {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">

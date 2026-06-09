@@ -91,6 +91,23 @@ model Unit {
   materialRequests MaterialRequest[]
   incidents        Incident[]
   preventivePlans  PreventivePlan[]
+  fuelCards        FuelCard[]
+}
+
+model FuelCard {
+  id           String   @id @default(cuid())
+  cardNumber   String?  // número o últimos dígitos de la tarjeta
+  provider     String   @default("PETROTHOR")
+  holderName   String   // nombre del conductor titular
+  holderDni    String   // DNI del conductor (para casar con los vouchers)
+  driverId     String?  // userId del conductor (opcional)
+  unitId       String?  // unidad asignada
+  monthlyLimit Float    // saldo mensual asignado (ej: 8000)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  unit Unit? @relation(fields: [unitId], references: [id])
 }
 
 model Sancion {

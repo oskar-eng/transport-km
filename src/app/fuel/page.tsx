@@ -72,9 +72,24 @@ export default async function FuelPage() {
     };
   });
 
+  // Saldo de tarjeta del conductor (se muestra en su vista de Combustible)
+  let driverCard: { holderName: string; monthlyLimit: number; consumido: number; disponible: number; cardNumber: string | null } | null = null;
+  if (isDriver) {
+    const card = await prisma.fuelCard.findFirst({ where: { driverId: user.id, active: true } });
+    if (card) {
+      const now = new Date();
+      const monthRecs = await prisma.fuelRecord.findMany({
+        where: { driverDni: card.holderDni, date: { gte: new Date(now.getFullYear(), now.getMonth(), 1), lt: new Date(now.getFullYear(), now.getMonth() + 1, 1) } },
+        select: { totalCost: true },
+      });
+      const consumido = monthRecs.reduce((s, r) => s + (r.totalCost ?? 0), 0);
+      driverCard = { holderName: card.holderName, monthlyLimit: card.monthlyLimit, consumido, disponible: Math.max(0, card.monthlyLimit - consumido), cardNumber: card.cardNumber };
+    }
+  }
+
   return (
     <AppShell>
-      <FuelClient records={records} units={units} userRole={user.role} defaultUnitId={defaultUnitId} />
+      <FuelClient records={records} units={units} userRole={user.role} defaultUnitId={defaultUnitId} driverCard={driverCard} />
     </AppShell>
   );
 }
