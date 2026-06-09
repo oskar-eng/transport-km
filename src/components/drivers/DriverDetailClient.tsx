@@ -2,7 +2,7 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, User, FileText, Upload, Loader2, CheckCircle2, X, Save, Truck, Gauge } from "lucide-react";
+import { ArrowLeft, User, FileText, Upload, Loader2, CheckCircle2, X, Save, Truck, Gauge, ScanLine, CreditCard } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { DRIVER_DOC_TYPES, docStatus, driverHabilitado, type DriverDoc } from "@/lib/driverDocs";
@@ -131,8 +131,35 @@ function BasicData({ driver, canEdit, onSaved }: { driver: Driver; canEdit: bool
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
   const photoRef = useRef<HTMLInputElement>(null);
+  const scanRef = useRef<HTMLInputElement>(null);
+  const [scanning, setScanning] = useState<"" | "DNI" | "LICENCIA">("");
+  const scanTypeRef = useRef<"DNI" | "LICENCIA">("DNI");
 
   function set(f: string, v: string) { setForm(p => ({ ...p, [f]: v })); }
+
+  function triggerScan(type: "DNI" | "LICENCIA") { scanTypeRef.current = type; setError(""); setMsg(""); scanRef.current?.click(); }
+
+  async function handleScan(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]; if (!file) return;
+    const type = scanTypeRef.current;
+    setScanning(type); setError(""); setMsg("");
+    const fd = new FormData(); fd.append("file", file); fd.append("docType", type);
+    const res = await fetch("/api/parse-driver", { method: "POST", body: fd });
+    const data = await res.json();
+    setScanning("");
+    if (scanRef.current) scanRef.current.value = "";
+    if (!res.ok) { setError(data.error ?? "No se pudo leer el documento"); return; }
+    setForm(f => ({
+      ...f,
+      dni:             data.dni             ?? f.dni,
+      firstName:       data.firstName       ?? f.firstName,
+      lastName:        data.lastName        ?? f.lastName,
+      licenseNumber:   data.licenseNumber   ?? f.licenseNumber,
+      licenseCategory: data.licenseCategory ?? f.licenseCategory,
+      licenseExpiry:   data.licenseExpiry   ?? f.licenseExpiry,
+    }));
+    setMsg(type === "DNI" ? "Datos del DNI extraídos ✓ — revisa y guarda" : "Datos de la licencia extraídos ✓ — revisa y guarda");
+  }
 
   async function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]; if (!file) return;
@@ -165,7 +192,22 @@ function BasicData({ driver, canEdit, onSaved }: { driver: Driver; canEdit: bool
 
   return (
     <div className="bg-white rounded-xl shadow-sm p-6">
-      <h2 className="text-lg font-bold text-gray-900 mb-5">Datos Básicos</h2>
+      <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
+        <h2 className="text-lg font-bold text-gray-900">Datos Básicos</h2>
+        {canEdit && (
+          <div className="flex items-center gap-2">
+            <button type="button" onClick={() => triggerScan("DNI")} disabled={scanning !== ""}
+              className="flex items-center gap-2 text-sm bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50">
+              {scanning === "DNI" ? <Loader2 size={14} className="animate-spin" /> : <ScanLine size={14} />} Escanear DNI
+            </button>
+            <button type="button" onClick={() => triggerScan("LICENCIA")} disabled={scanning !== ""}
+              className="flex items-center gap-2 text-sm bg-blue-700 hover:bg-blue-800 text-white px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50">
+              {scanning === "LICENCIA" ? <Loader2 size={14} className="animate-spin" /> : <CreditCard size={14} />} Escanear Licencia
+            </button>
+            <input ref={scanRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleScan} />
+          </div>
+        )}
+      </div>
       <div className="flex flex-col sm:flex-row gap-6">
         {/* Foto */}
         <div className="flex flex-col items-center gap-2 shrink-0">
@@ -256,7 +298,7 @@ function Documents({ driverProfileId, docs, setDocs, canEdit }: {
           </thead>
           <tbody className="divide-y">
             {DRIVER_DOC_TYPES.map(t => (
-              <DocRow key={t.key} type={t.key} label={t.label} driverProfileId={driverProfileId}
+              <DocRow key={t.key} type={t.key} label={t.label} noExpiry={!!t.noExpiry} driverProfileId={driverProfileId}
                 doc={docs.find(d => d.type === t.key)} canEdit={canEdit}
                 onPreview={(url) => setPreview({ url, name: t.label })}
                 onSaved={(saved) => {
@@ -272,8 +314,8 @@ function Documents({ driverProfileId, docs, setDocs, canEdit }: {
   );
 }
 
-function DocRow({ type, label, driverProfileId, doc, canEdit, onSaved, onPreview }: {
-  type: string; label: string; driverProfileId: string;
+function DocRow({ type, label, noExpiry, driverProfileId, doc, canEdit, onSaved, onPreview }: {
+  type: string; label: string; noExpiry?: boolean; driverProfileId: string;
   doc?: DriverDoc; canEdit: boolean; onSaved: (d: DriverDoc) => void; onPreview: (url: string) => void;
 }) {
   const [expiry, setExpiry] = useState(doc?.expiryDate ? doc.expiryDate.slice(0, 10) : "");
@@ -311,10 +353,14 @@ function DocRow({ type, label, driverProfileId, doc, canEdit, onSaved, onPreview
       </td>
       <td className="px-4 py-3 font-medium text-gray-800">{label}</td>
       <td className="px-4 py-3">
-        <input type="date" value={expiry} disabled={!canEdit}
-          onChange={e => setExpiry(e.target.value)}
-          onBlur={() => canEdit && persist(fileUrl, expiry)}
-          className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50" />
+        {noExpiry ? (
+          <span className="text-xs text-gray-400">Sin vencimiento</span>
+        ) : (
+          <input type="date" value={expiry} disabled={!canEdit}
+            onChange={e => setExpiry(e.target.value)}
+            onBlur={() => canEdit && persist(fileUrl, expiry)}
+            className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50" />
+        )}
       </td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">

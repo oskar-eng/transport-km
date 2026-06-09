@@ -2,7 +2,7 @@
 import { useState, useRef } from "react";
 import {
   UserRound, Plus, Pencil, X, Camera, ImageOff,
-  Phone, Mail, Truck, AlertTriangle, CheckCircle2, Clock, ExternalLink,
+  Phone, Mail, Truck, AlertTriangle, CheckCircle2, Clock, ExternalLink, Download, Loader2,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -131,6 +131,33 @@ export default function DriversClient({ drivers: initial, userRole }: { drivers:
 
   const expired = drivers.filter(d => d.profile?.licenseExpiry && daysUntil(d.profile.licenseExpiry) < 0).length;
 
+  const [exporting, setExporting] = useState(false);
+  async function exportExcel() {
+    setExporting(true);
+    try {
+      const XLSX = await import("xlsx");
+      const rows = visible.map(d => {
+        const p = d.profile;
+        return {
+          Conductor: p ? `${p.firstName} ${p.lastName}` : d.name,
+          DNI: p?.dni ?? "",
+          Licencia: p?.licenseNumber ?? "",
+          Categoría: p?.licenseCategory ?? "",
+          "Vence licencia": p?.licenseExpiry ? p.licenseExpiry.slice(0, 10) : "",
+          Celular: p?.phone ?? "",
+          Estado: DRIVER_STATUS.find(s => s.value === p?.status)?.label ?? "",
+          Habilitado: p ? (driverHabilitado(d.documents) ? "Sí" : "No") : "",
+          "Unidad asignada": d.activeUnit?.plate ?? "",
+          Correo: d.email,
+        };
+      });
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Conductores");
+      XLSX.writeFile(wb, `conductores_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } finally { setExporting(false); }
+  }
+
   /* ── helpers ── */
   const F = (label: string, node: React.ReactNode, col = 1) => (
     <div className={col === 2 ? "col-span-2" : ""}>
@@ -186,6 +213,10 @@ export default function DriversClient({ drivers: initial, userRole }: { drivers:
           <option value="">Todos los estados</option>
           {DRIVER_STATUS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
         </select>
+        <button onClick={exportExcel} disabled={exporting || visible.length === 0}
+          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-3 py-2 rounded-lg transition-colors disabled:opacity-50 ml-auto">
+          {exporting ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />} Exportar Excel
+        </button>
       </div>
 
       {/* Table */}
