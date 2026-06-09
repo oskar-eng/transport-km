@@ -7,21 +7,15 @@ export const dynamic = "force-dynamic";
 
 const ADMIN_ROLES = ["ADMINISTRADOR", "JEFE_TRANSPORTE", "SUPERVISOR"];
 
-// Suma de cargas del mes en curso por DNI de conductor
-async function consumoDelMesPorDni() {
+// Registros de carga del mes en curso (para calcular consumo por tarjeta)
+async function cargasDelMes() {
   const now = new Date();
   const inicioMes = new Date(now.getFullYear(), now.getMonth(), 1);
   const inicioProx = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-  const records = await prisma.fuelRecord.findMany({
-    where: { date: { gte: inicioMes, lt: inicioProx }, driverDni: { not: null } },
-    select: { driverDni: true, totalCost: true },
+  return prisma.fuelRecord.findMany({
+    where: { date: { gte: inicioMes, lt: inicioProx } },
+    select: { driverDni: true, unitId: true, totalCost: true },
   });
-  const map: Record<string, number> = {};
-  for (const r of records) {
-    if (!r.driverDni) continue;
-    map[r.driverDni] = (map[r.driverDni] ?? 0) + (r.totalCost ?? 0);
-  }
-  return map;
 }
 
 export async function GET() {
@@ -29,12 +23,12 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   const user = session.user as { id: string; role: string };
 
-  const [cards, consumo] = await Promise.all([
+  const [cards, mesRecords] = await Promise.all([
     prisma.fuelCard.findMany({
       include: { unit: { select: { plate: true, model: true } } },
       orderBy: { holderName: "asc" },
     }),
-    consumoDelMesPorDni(),
+    cargasDelMes(),
   ]);
 
   // El conductor solo ve su propia tarjeta
@@ -43,7 +37,9 @@ export async function GET() {
     : cards.filter(c => c.driverId === user.id);
 
   const data = visibles.map(c => {
-    const consumido = consumo[c.holderDni] ?? 0;
+    const consumido = mesRecords
+      .filter(r => r.driverDni === c.holderDni || (c.unitId != null && r.unitId === c.unitId))
+      .reduce((s, r) => s + (r.totalCost ?? 0), 0);
     const disponible = Math.max(0, c.monthlyLimit - consumido);
     return {
       id: c.id, cardNumber: c.cardNumber, provider: c.provider,

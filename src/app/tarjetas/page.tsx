@@ -23,17 +23,17 @@ export default async function TarjetasPage() {
     prisma.fuelCard.findMany({ include: { unit: { select: { plate: true, model: true } } }, orderBy: { holderName: "asc" } }),
     prisma.unit.findMany({ orderBy: { plate: "asc" }, select: { id: true, plate: true, model: true } }),
     prisma.user.findMany({ where: { role: "CONDUCTOR" }, include: { driverProfile: true } }),
-    prisma.fuelRecord.findMany({ where: { date: range, driverDni: { not: null } }, select: { driverDni: true, totalCost: true } }),
+    prisma.fuelRecord.findMany({ where: { date: range }, select: { driverDni: true, unitId: true, totalCost: true } }),
   ]);
 
-  const consumo: Record<string, number> = {};
-  for (const r of monthRecords) {
-    if (!r.driverDni) continue;
-    consumo[r.driverDni] = (consumo[r.driverDni] ?? 0) + (r.totalCost ?? 0);
-  }
+  // Consumo del mes por tarjeta: cargas que coinciden por DNI del conductor O por la unidad asignada
+  const consumoCard = (c: { holderDni: string; unitId: string | null }) =>
+    monthRecords
+      .filter(r => r.driverDni === c.holderDni || (c.unitId != null && r.unitId === c.unitId))
+      .reduce((s, r) => s + (r.totalCost ?? 0), 0);
 
   const data = cards.map(c => {
-    const consumido = consumo[c.holderDni] ?? 0;
+    const consumido = consumoCard(c);
     return {
       id: c.id, cardNumber: c.cardNumber, provider: c.provider,
       holderName: c.holderName, holderDni: c.holderDni, driverId: c.driverId,

@@ -78,8 +78,11 @@ export default async function FuelPage() {
     const card = await prisma.fuelCard.findFirst({ where: { driverId: user.id, active: true } });
     if (card) {
       const now = new Date();
+      // Descuenta las cargas del mes en curso que coincidan por DNI del conductor O por la unidad asignada
+      const orMatch: { driverDni?: string; unitId?: string }[] = [{ driverDni: card.holderDni }];
+      if (card.unitId) orMatch.push({ unitId: card.unitId });
       const monthRecs = await prisma.fuelRecord.findMany({
-        where: { driverDni: card.holderDni, date: { gte: new Date(now.getFullYear(), now.getMonth(), 1), lt: new Date(now.getFullYear(), now.getMonth() + 1, 1) } },
+        where: { date: { gte: new Date(now.getFullYear(), now.getMonth(), 1), lt: new Date(now.getFullYear(), now.getMonth() + 1, 1) }, OR: orMatch },
         select: { totalCost: true },
       });
       const consumido = monthRecs.reduce((s, r) => s + (r.totalCost ?? 0), 0);
