@@ -9,7 +9,7 @@ import FilePreview from "@/components/common/FilePreview";
 const FuelEfficiencyChart = dynamic(() => import("./FuelEfficiencyChart"), { ssr: false });
 
 const FUEL_TYPES: Record<string, string> = { DIESEL: "Diésel", GASOLINA: "Gasolina", GNV: "GNV" };
-const EMPTY_FORM = { unitId: "", date: "", liters: "", pricePerLiter: "", totalCost: "", odometer: "", station: "", stationName: "", fuelType: "DIESEL", loadType: "TRACTO", notes: "", driverName: "", driverDni: "", receiptDispatchUrl: "", receiptPaymentUrl: "" };
+const EMPTY_FORM = { unitId: "", date: "", liters: "", pricePerLiter: "", totalCost: "", odometer: "", station: "", stationName: "", stationAddress: "", fuelType: "DIESEL", loadType: "TRACTO", notes: "", driverName: "", driverDni: "", receiptDispatchUrl: "", receiptPaymentUrl: "" };
 // Umbral: si el km del comprobante es muy bajo, la carga es para el generador (no tiene odómetro real)
 const GENERADOR_KM_MAX = 100;
 // Nota: el campo "liters" en DB almacena galones (unidad de la empresa)
@@ -26,7 +26,7 @@ interface Unit    { id: string; plate: string; model: string }
 interface FuelRec {
   id: string; unitId: string; date: string; liters: number;
   pricePerLiter: number | null; totalCost: number | null; odometer: number;
-  station: string | null; stationName?: string | null; fuelType: string; loadType?: string; notes: string | null;
+  station: string | null; stationName?: string | null; stationAddress?: string | null; fuelType: string; loadType?: string; notes: string | null;
   kmPerLiter: number | null;
   driverName?: string | null; driverDni?: string | null;
   receiptDispatchUrl?: string | null; receiptPaymentUrl?: string | null;
@@ -81,7 +81,7 @@ export default function FuelClient({
       unitId: r.unitId, date: format(new Date(r.date), "yyyy-MM-dd"),
       liters: String(r.liters), pricePerLiter: r.pricePerLiter ? String(r.pricePerLiter) : "",
       totalCost: r.totalCost ? String(r.totalCost) : "", odometer: String(r.odometer),
-      station: r.station ?? "", stationName: r.stationName ?? "", fuelType: r.fuelType, loadType: r.loadType ?? "TRACTO", notes: r.notes ?? "",
+      station: r.station ?? "", stationName: r.stationName ?? "", stationAddress: r.stationAddress ?? "", fuelType: r.fuelType, loadType: r.loadType ?? "TRACTO", notes: r.notes ?? "",
       driverName: r.driverName ?? "", driverDni: r.driverDni ?? "",
       receiptDispatchUrl: r.receiptDispatchUrl ?? "", receiptPaymentUrl: r.receiptPaymentUrl ?? "",
     });
@@ -147,6 +147,7 @@ export default function FuelClient({
         if (data.fuelType)         next.fuelType = data.fuelType;
         if (data.station)          next.station  = data.station;
         if (data.stationName)      next.stationName = data.stationName;
+        if (data.stationAddress)   next.stationAddress = data.stationAddress;
       } else { // PAGO
         if (data.totalCost != null) next.totalCost = String(data.totalCost);
         if (data.odometer  != null) {
@@ -313,7 +314,7 @@ export default function FuelClient({
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 border-b">
                     <tr>
-                      {["Fecha","Unidad","Destino","Galones","Precio/Gal","Costo total","Odómetro","Rendimiento","Grifo","Conductor","Comprob.",""].map(h => (
+                      {["Fecha","Unidad","Destino","Tipo","Galones","Precio/Gal","Costo total","Odómetro","Rendimiento","Grifo","Dirección","Conductor","DNI","Comprob.",""].map(h => (
                         <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -327,7 +328,6 @@ export default function FuelClient({
                         <tr key={r.id} className="hover:bg-gray-50 transition-colors">
                           <td className="px-4 py-3 whitespace-nowrap">
                             <p className="font-medium text-gray-800">{format(new Date(r.date), "dd/MM/yyyy", { locale: es })}</p>
-                            <p className="text-xs text-gray-400">{FUEL_TYPES[r.fuelType]}</p>
                           </td>
                           <td className="px-4 py-3">
                             <p className="font-mono font-semibold text-gray-900">{r.unit.plate}</p>
@@ -340,6 +340,7 @@ export default function FuelClient({
                               <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">🚛 Tracto</span>
                             )}
                           </td>
+                          <td className="px-4 py-3 text-gray-600 text-xs">{FUEL_TYPES[r.fuelType] ?? r.fuelType}</td>
                           <td className="px-4 py-3 font-semibold text-gray-800">{r.liters} Gal</td>
                           <td className="px-4 py-3 text-gray-600">{r.pricePerLiter ? `S/ ${r.pricePerLiter}` : "—"}</td>
                           <td className="px-4 py-3 font-semibold">{r.totalCost ? `S/ ${r.totalCost.toLocaleString("es-PE", { maximumFractionDigits: 2 })}` : "—"}</td>
@@ -353,22 +354,15 @@ export default function FuelClient({
                               </span>
                             ) : <span className="text-gray-300 text-xs">—</span>}
                           </td>
-                          <td className="px-4 py-3 text-xs max-w-[200px]">
-                            {r.stationName || r.station ? (
-                              <>
-                                <p className="text-gray-700 font-medium">{r.stationName || r.station}</p>
-                                {r.stationName && r.station && <p className="text-gray-400">{r.station}</p>}
-                              </>
-                            ) : <span className="text-gray-300">—</span>}
+                          <td className="px-4 py-3 text-xs max-w-[160px]">
+                            {r.stationName ? <p className="text-gray-700 font-medium">{r.stationName}</p>
+                              : r.station ? <p className="text-gray-700 font-medium">{r.station}</p>
+                              : <span className="text-gray-300">—</span>}
+                            {r.stationName && r.station && <p className="text-gray-400">{r.station}</p>}
                           </td>
-                          <td className="px-4 py-3 text-xs">
-                            {r.driverName ? (
-                              <>
-                                <p className="text-gray-700 font-medium">{r.driverName}</p>
-                                {r.driverDni && <p className="text-gray-400">DNI {r.driverDni}</p>}
-                              </>
-                            ) : <span className="text-gray-300">—</span>}
-                          </td>
+                          <td className="px-4 py-3 text-xs text-gray-600 max-w-[180px]">{r.stationAddress ?? <span className="text-gray-300">—</span>}</td>
+                          <td className="px-4 py-3 text-xs text-gray-700">{r.driverName ?? <span className="text-gray-300">—</span>}</td>
+                          <td className="px-4 py-3 text-xs text-gray-600">{r.driverDni ?? <span className="text-gray-300">—</span>}</td>
                           <td className="px-4 py-3">
                             <div className="flex items-center gap-1">
                               {r.receiptDispatchUrl && (
@@ -577,9 +571,14 @@ export default function FuelClient({
                   <input value={form.station} onChange={e => set("station", e.target.value)} placeholder="Ej: REPSOL COMERCIAL S.A.C."
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
-                <div className="col-span-2">
-                  <label className="text-xs font-semibold text-gray-700 block mb-1">Nombre / dirección del grifo</label>
-                  <input value={form.stationName} onChange={e => set("stationName", e.target.value)} placeholder="Ej: San Carlos, Car. Panamericana Norte Km 28.3, Puente Piedra"
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 block mb-1">Nombre del grifo</label>
+                  <input value={form.stationName} onChange={e => set("stationName", e.target.value)} placeholder="Ej: San Carlos"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 block mb-1">Dirección del grifo</label>
+                  <input value={form.stationAddress} onChange={e => set("stationAddress", e.target.value)} placeholder="Ej: Panamericana Norte Km 28.3, Puente Piedra"
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
                 <div>

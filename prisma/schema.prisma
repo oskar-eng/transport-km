@@ -452,8 +452,9 @@ model FuelRecord {
   pricePerLiter Float?
   totalCost    Float?
   odometer     Int
-  station      String?  // razón social / empresa del grifo (ej: REPSOL COMERCIAL S.A.C.)
-  stationName  String?  // nombre del grifo / sucursal (ej: San Carlos)
+  station       String?  // razón social / empresa del grifo (ej: REPSOL COMERCIAL S.A.C.)
+  stationName   String?  // nombre del grifo / sucursal (ej: San Carlos)
+  stationAddress String? // dirección del grifo (ej: Car. Panamericana Norte Km 28.3, Puente Piedra)
   fuelType     String   @default("DIESEL") // DIESEL | GASOLINA | GNV
   loadType     String   @default("TRACTO") // TRACTO | GENERADOR (el generador no tiene odómetro real)
   notes        String?
