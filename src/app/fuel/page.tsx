@@ -42,21 +42,25 @@ export default async function FuelPage() {
       : prisma.unit.findMany({ orderBy: { plate: "asc" }, select: { id: true, plate: true, model: true } }),
   ]);
 
-  // Calcular rendimiento km/L entre cargas consecutivas por unidad
+  // Calcular rendimiento km/L entre cargas consecutivas por unidad.
+  // Solo cuentan las cargas de TRACTO (el generador no tiene odómetro real).
   const byUnit: Record<string, typeof rawRecords> = {};
   for (const r of rawRecords) {
+    if (r.loadType === "GENERADOR") continue;
     if (!byUnit[r.unitId]) byUnit[r.unitId] = [];
     byUnit[r.unitId].push(r);
   }
 
   const records = rawRecords.map(r => {
-    const unitRecs = byUnit[r.unitId];
-    const idx = unitRecs.findIndex(x => x.id === r.id);
     let kmPerLiter: number | null = null;
-    if (idx > 0) {
-      const prev = unitRecs[idx - 1];
-      const kmDiff = r.odometer - prev.odometer;
-      if (kmDiff > 0 && r.liters > 0) kmPerLiter = Math.round((kmDiff / r.liters) * 10) / 10;
+    if (r.loadType !== "GENERADOR") {
+      const unitRecs = byUnit[r.unitId];
+      const idx = unitRecs.findIndex(x => x.id === r.id);
+      if (idx > 0) {
+        const prev = unitRecs[idx - 1];
+        const kmDiff = r.odometer - prev.odometer;
+        if (kmDiff > 0 && r.liters > 0) kmPerLiter = Math.round((kmDiff / r.liters) * 10) / 10;
+      }
     }
     return {
       ...r,

@@ -454,6 +454,7 @@ model FuelRecord {
   odometer     Int
   station      String?
   fuelType     String   @default("DIESEL") // DIESEL | GASOLINA | GNV
+  loadType     String   @default("TRACTO") // TRACTO | GENERADOR (el generador no tiene odómetro real)
   notes        String?
   receiptDispatchUrl String? // foto del vale de despacho (grifo/Repsol)
   receiptPaymentUrl  String? // foto del comprobante de pago (Niubiz/POS)

@@ -16,22 +16,26 @@ export async function GET(req: NextRequest) {
     orderBy: [{ unitId: "asc" }, { date: "asc" }],
   });
 
-  // Calcular rendimiento km/L entre cargas consecutivas por unidad
+  // Calcular rendimiento km/L entre cargas consecutivas por unidad.
+  // Solo cuentan las cargas de TRACTO (el generador no tiene odómetro real).
   const byUnit: Record<string, typeof records> = {};
   for (const r of records) {
+    if (r.loadType === "GENERADOR") continue;
     if (!byUnit[r.unitId]) byUnit[r.unitId] = [];
     byUnit[r.unitId].push(r);
   }
 
   const withEfficiency = records.map((r) => {
-    const unitRecords = byUnit[r.unitId];
-    const idx = unitRecords.findIndex((x) => x.id === r.id);
     let kmPerLiter: number | null = null;
-    if (idx > 0) {
-      const prev = unitRecords[idx - 1];
-      const kmDiff = r.odometer - prev.odometer;
-      if (kmDiff > 0 && r.liters > 0) {
-        kmPerLiter = Math.round((kmDiff / r.liters) * 10) / 10;
+    if (r.loadType !== "GENERADOR") {
+      const unitRecords = byUnit[r.unitId];
+      const idx = unitRecords.findIndex((x) => x.id === r.id);
+      if (idx > 0) {
+        const prev = unitRecords[idx - 1];
+        const kmDiff = r.odometer - prev.odometer;
+        if (kmDiff > 0 && r.liters > 0) {
+          kmPerLiter = Math.round((kmDiff / r.liters) * 10) / 10;
+        }
       }
     }
     return { ...r, kmPerLiter };
@@ -63,6 +67,7 @@ export async function POST(req: NextRequest) {
       odometer:      Number(body.odometer),
       station:       body.station || null,
       fuelType:      body.fuelType || "DIESEL",
+      loadType:      body.loadType === "GENERADOR" ? "GENERADOR" : "TRACTO",
       notes:         body.notes || null,
       receiptDispatchUrl: body.receiptDispatchUrl || null,
       receiptPaymentUrl:  body.receiptPaymentUrl || null,

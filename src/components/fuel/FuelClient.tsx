@@ -9,7 +9,9 @@ import FilePreview from "@/components/common/FilePreview";
 const FuelEfficiencyChart = dynamic(() => import("./FuelEfficiencyChart"), { ssr: false });
 
 const FUEL_TYPES: Record<string, string> = { DIESEL: "Diésel", GASOLINA: "Gasolina", GNV: "GNV" };
-const EMPTY_FORM = { unitId: "", date: "", liters: "", pricePerLiter: "", totalCost: "", odometer: "", station: "", fuelType: "DIESEL", notes: "", driverName: "", driverDni: "", receiptDispatchUrl: "", receiptPaymentUrl: "" };
+const EMPTY_FORM = { unitId: "", date: "", liters: "", pricePerLiter: "", totalCost: "", odometer: "", station: "", fuelType: "DIESEL", loadType: "TRACTO", notes: "", driverName: "", driverDni: "", receiptDispatchUrl: "", receiptPaymentUrl: "" };
+// Umbral: si el km del comprobante es muy bajo, la carga es para el generador (no tiene odómetro real)
+const GENERADOR_KM_MAX = 100;
 // Nota: el campo "liters" en DB almacena galones (unidad de la empresa)
 
 type SlotKey = "DESPACHO" | "PAGO";
@@ -24,7 +26,7 @@ interface Unit    { id: string; plate: string; model: string }
 interface FuelRec {
   id: string; unitId: string; date: string; liters: number;
   pricePerLiter: number | null; totalCost: number | null; odometer: number;
-  station: string | null; fuelType: string; notes: string | null;
+  station: string | null; fuelType: string; loadType?: string; notes: string | null;
   kmPerLiter: number | null;
   driverName?: string | null; driverDni?: string | null;
   receiptDispatchUrl?: string | null; receiptPaymentUrl?: string | null;
@@ -79,7 +81,7 @@ export default function FuelClient({
       unitId: r.unitId, date: format(new Date(r.date), "yyyy-MM-dd"),
       liters: String(r.liters), pricePerLiter: r.pricePerLiter ? String(r.pricePerLiter) : "",
       totalCost: r.totalCost ? String(r.totalCost) : "", odometer: String(r.odometer),
-      station: r.station ?? "", fuelType: r.fuelType, notes: r.notes ?? "",
+      station: r.station ?? "", fuelType: r.fuelType, loadType: r.loadType ?? "TRACTO", notes: r.notes ?? "",
       driverName: r.driverName ?? "", driverDni: r.driverDni ?? "",
       receiptDispatchUrl: r.receiptDispatchUrl ?? "", receiptPaymentUrl: r.receiptPaymentUrl ?? "",
     });
@@ -146,7 +148,11 @@ export default function FuelClient({
         if (data.station)          next.station  = data.station;
       } else { // PAGO
         if (data.totalCost != null) next.totalCost = String(data.totalCost);
-        if (data.odometer  != null) next.odometer  = String(data.odometer); // km del comprobante de pago
+        if (data.odometer  != null) {
+          next.odometer = String(data.odometer); // km del comprobante de pago
+          // Si el km es muy bajo (ej. 000001), es carga de generador (no tiene odómetro real)
+          next.loadType = Number(data.odometer) <= GENERADOR_KM_MAX ? "GENERADOR" : "TRACTO";
+        }
         if (data.driverName)        next.driverName = data.driverName;
         if (data.driverDni)         next.driverDni  = data.driverDni;
       }
@@ -306,7 +312,7 @@ export default function FuelClient({
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 border-b">
                     <tr>
-                      {["Fecha","Unidad","Galones","Precio/Gal","Costo total","Odómetro","Rendimiento","Grifo","Conductor","Comprob.",""].map(h => (
+                      {["Fecha","Unidad","Destino","Galones","Precio/Gal","Costo total","Odómetro","Rendimiento","Grifo","Conductor","Comprob.",""].map(h => (
                         <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -325,6 +331,13 @@ export default function FuelClient({
                           <td className="px-4 py-3">
                             <p className="font-mono font-semibold text-gray-900">{r.unit.plate}</p>
                             <p className="text-xs text-gray-400">{r.unit.model}</p>
+                          </td>
+                          <td className="px-4 py-3">
+                            {r.loadType === "GENERADOR" ? (
+                              <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">⚡ Generador</span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">🚛 Tracto</span>
+                            )}
                           </td>
                           <td className="px-4 py-3 font-semibold text-gray-800">{r.liters} Gal</td>
                           <td className="px-4 py-3 text-gray-600">{r.pricePerLiter ? `S/ ${r.pricePerLiter}` : "—"}</td>
@@ -513,6 +526,20 @@ export default function FuelClient({
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                     {Object.entries(FUEL_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                   </select>
+                </div>
+                <div className="col-span-2">
+                  <label className="text-xs font-semibold text-gray-700 block mb-1">Destino de la carga</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {([["TRACTO", "🚛 Tracto"], ["GENERADOR", "⚡ Generador"]] as const).map(([val, label]) => (
+                      <button key={val} type="button" onClick={() => set("loadType", val)}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium border-2 transition-colors ${form.loadType === val ? "border-blue-500 bg-blue-50 text-blue-700" : "border-gray-200 text-gray-600 hover:border-gray-300"}`}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  {form.loadType === "GENERADOR" && (
+                    <p className="text-[11px] text-amber-600 mt-1">El generador no tiene odómetro; esta carga no afectará el rendimiento km/galón.</p>
+                  )}
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-gray-700 block mb-1">Galones cargados *</label>
