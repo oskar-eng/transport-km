@@ -5,24 +5,42 @@ import { authOptions } from "@/lib/auth";
 // Modelo de Google Gemini con visión
 const GEMINI_MODEL = "gemini-2.5-flash";
 
-const PROMPT = `Analiza este comprobante/voucher de combustible (puede ser de Repsol, Petroperu, Niubiz, Primax u otra estación de servicio peruana) y extrae los siguientes datos. Si un campo no está visible, devuelve null.
+// Tipos de comprobante:
+//   DESPACHO = vale del grifo (Repsol/Primax/Petroperú): muestra producto y CANTIDAD de combustible (galones/litros)
+//   PAGO     = voucher de pago con tarjeta/POS (Niubiz/Izipay/Visa): muestra MONTO pagado en soles
+const PROMPT = `Eres un clasificador y extractor de comprobantes de combustible peruanos.
 
-Devuelve ÚNICAMENTE el JSON sin explicaciones ni markdown:
+PASO 1 — CLASIFICA la imagen en uno de estos tipos:
+- "DESPACHO": vale o ticket de un grifo/estación (Repsol, Primax, Petroperú, etc.) que muestra el PRODUCTO y la CANTIDAD de combustible despachado (galones o litros). Suele decir "Diesel", "GAL", cantidad de combustible.
+- "PAGO": voucher de pago con tarjeta o POS (Niubiz, Izipay, Visa, Mastercard) que muestra el MONTO PAGADO en soles, número de operación y/o tarjeta. NO muestra cantidad de combustible.
+- "OTRO": cualquier imagen que NO sea un comprobante de combustible (foto de otra cosa, documento distinto, etc.).
 
+PASO 2 — Evalúa si la imagen es LEGIBLE: texto nítido, enfocado y se entiende. Si está borrosa, oscura o cortada, marca legible=false.
+
+PASO 3 — Extrae los datos visibles. Si un campo no está visible, devuelve null.
+
+Devuelve ÚNICAMENTE este JSON sin explicaciones ni markdown:
 {
-  "plate": "número de placa del vehículo (ej: BFT-857)",
+  "documentType": "DESPACHO" | "PAGO" | "OTRO",
+  "legible": true | false,
+  "plate": "número de placa del vehículo (ej: A2K-942)",
   "date": "fecha en formato YYYY-MM-DD",
-  "liters": cantidad en GALONES (si el recibo está en litros, conviértelo a galones: 1 GAL = 3.785 litros),
-  "unit": "GAL o LT (unidad original en el recibo)",
-  "quantityOriginal": cantidad original del recibo sin convertir,
-  "pricePerLiter": precio por galón como número (si está disponible),
-  "totalCost": monto total en soles como número,
+  "liters": cantidad en GALONES (si está en litros conviértelo: 1 GAL = 3.785 litros),
+  "unit": "GAL o LT (unidad original)",
+  "quantityOriginal": cantidad original sin convertir,
+  "totalCost": monto total pagado en soles como número,
   "odometer": kilometraje como número entero (quita puntos y comas),
   "station": "nombre de la estación o grifo",
   "fuelType": "DIESEL o GASOLINA o GNV",
   "driverName": "nombre del conductor si aparece",
-  "driverDni": "DNI del conductor si aparece"
+  "driverDni": "DNI del conductor si aparece",
+  "operationNumber": "número de operación si aparece"
 }`;
+
+const TIPO_LABEL: Record<string, string> = {
+  DESPACHO: "vale de despacho del grifo",
+  PAGO: "comprobante de pago (Niubiz)",
+};
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -36,6 +54,8 @@ export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
+    // Tipo esperado para este recibo: "DESPACHO" | "PAGO" (opcional)
+    const expectedType = (formData.get("expectedType") as string | null)?.toUpperCase() || null;
     if (!file) return NextResponse.json({ error: "No se recibió imagen" }, { status: 400 });
 
     const bytes = await file.arrayBuffer();
@@ -77,6 +97,31 @@ export async function POST(req: NextRequest) {
     if (!jsonMatch) return NextResponse.json({ error: "No se pudo extraer datos del voucher" }, { status: 422 });
 
     const data = JSON.parse(jsonMatch[0]);
+
+    // ── Validación de tipo y legibilidad ──
+    // Imagen borrosa / ilegible → rechazar
+    if (data.legible === false) {
+      return NextResponse.json(
+        { error: "La foto está borrosa o no se entiende. Tómala de nuevo bien enfocada, con buena luz y sin recortar el comprobante." },
+        { status: 422 },
+      );
+    }
+    // No es un comprobante de combustible
+    if (data.documentType === "OTRO") {
+      return NextResponse.json(
+        { error: "Esa imagen no parece un comprobante de combustible. Sube el vale del grifo o el voucher de pago." },
+        { status: 422 },
+      );
+    }
+    // Subió el comprobante equivocado para esta casilla
+    if (expectedType && (expectedType === "DESPACHO" || expectedType === "PAGO") && data.documentType !== expectedType) {
+      const esperado = TIPO_LABEL[expectedType];
+      const subido = TIPO_LABEL[data.documentType] ?? "otro tipo de comprobante";
+      return NextResponse.json(
+        { error: `Aquí va el ${esperado}, pero subiste un ${subido}. Verifica la foto e inténtalo de nuevo.` },
+        { status: 422 },
+      );
+    }
 
     // El campo "liters" representa galones. Si el recibo vino en litros, convertir a galones.
     if (data.unit === "LT" && data.quantityOriginal) {

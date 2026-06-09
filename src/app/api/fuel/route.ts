@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   const user = session.user as { role: string };
-  if (!["ADMINISTRADOR", "JEFE_TRANSPORTE", "SUPERVISOR"].includes(user.role)) {
+  if (!["ADMINISTRADOR", "JEFE_TRANSPORTE", "SUPERVISOR", "CONDUCTOR"].includes(user.role)) {
     return NextResponse.json({ error: "Sin permisos" }, { status: 403 });
   }
 
@@ -64,6 +64,10 @@ export async function POST(req: NextRequest) {
       station:       body.station || null,
       fuelType:      body.fuelType || "DIESEL",
       notes:         body.notes || null,
+      receiptDispatchUrl: body.receiptDispatchUrl || null,
+      receiptPaymentUrl:  body.receiptPaymentUrl || null,
+      driverDni:     body.driverDni || null,
+      driverName:    body.driverName || null,
     },
     include: { unit: { select: { plate: true, model: true } } },
   });

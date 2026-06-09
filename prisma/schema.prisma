@@ -455,6 +455,10 @@ model FuelRecord {
   station      String?
   fuelType     String   @default("DIESEL") // DIESEL | GASOLINA | GNV
   notes        String?
+  receiptDispatchUrl String? // foto del vale de despacho (grifo/Repsol)
+  receiptPaymentUrl  String? // foto del comprobante de pago (Niubiz/POS)
+  driverDni    String?  // DNI del conductor (extraído del comprobante de pago)
+  driverName   String?  // nombre del conductor (extraído del comprobante de pago)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

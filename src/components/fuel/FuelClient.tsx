@@ -2,14 +2,23 @@
 import { useState, useMemo, useRef } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { Plus, Pencil, Trash2, Fuel, TrendingUp, TrendingDown, Minus, AlertTriangle, ScanLine, Loader2, CheckCircle2, X, Receipt } from "lucide-react";
+import { Plus, Pencil, Trash2, Fuel, TrendingUp, TrendingDown, Minus, AlertTriangle, Loader2, CheckCircle2, X, Receipt, Camera, AlertCircle, FileText } from "lucide-react";
 import dynamic from "next/dynamic";
+import FilePreview from "@/components/common/FilePreview";
 
 const FuelEfficiencyChart = dynamic(() => import("./FuelEfficiencyChart"), { ssr: false });
 
 const FUEL_TYPES: Record<string, string> = { DIESEL: "Diésel", GASOLINA: "Gasolina", GNV: "GNV" };
-const EMPTY_FORM = { unitId: "", date: "", liters: "", pricePerLiter: "", totalCost: "", odometer: "", station: "", fuelType: "DIESEL", notes: "" };
+const EMPTY_FORM = { unitId: "", date: "", liters: "", pricePerLiter: "", totalCost: "", odometer: "", station: "", fuelType: "DIESEL", notes: "", driverName: "", driverDni: "", receiptDispatchUrl: "", receiptPaymentUrl: "" };
 // Nota: el campo "liters" en DB almacena galones (unidad de la empresa)
+
+type SlotKey = "DESPACHO" | "PAGO";
+interface SlotState { scanning: boolean; preview: string; url: string; done: boolean; error: string }
+const EMPTY_SLOT: SlotState = { scanning: false, preview: "", url: "", done: false, error: "" };
+const SLOT_INFO: Record<SlotKey, { label: string; hint: string }> = {
+  DESPACHO: { label: "Vale de despacho (grifo)", hint: "El ticket del grifo con los galones y el tipo de combustible" },
+  PAGO:     { label: "Comprobante de pago (Niubiz)", hint: "El voucher de la tarjeta con el monto pagado" },
+};
 
 interface Unit    { id: string; plate: string; model: string }
 interface FuelRec {
@@ -17,6 +26,8 @@ interface FuelRec {
   pricePerLiter: number | null; totalCost: number | null; odometer: number;
   station: string | null; fuelType: string; notes: string | null;
   kmPerLiter: number | null;
+  driverName?: string | null; driverDni?: string | null;
+  receiptDispatchUrl?: string | null; receiptPaymentUrl?: string | null;
   unit: { plate: string; model: string };
 }
 
@@ -34,11 +45,11 @@ export default function FuelClient({
   const [filterUnit, setFilterUnit] = useState("TODOS");
   const [activeTab, setActiveTab]   = useState<"lista" | "resumen">("lista");
 
-  // Scan state
-  const [scanning, setScanning]     = useState(false);
-  const [scanned, setScanned]       = useState(false);
-  const [scanPreview, setScanPreview] = useState("");
-  const scanRef = useRef<HTMLInputElement>(null);
+  // Scan state — dos casillas (vale de despacho + comprobante de pago)
+  const [slots, setSlots] = useState<Record<SlotKey, SlotState>>({ DESPACHO: { ...EMPTY_SLOT }, PAGO: { ...EMPTY_SLOT } });
+  const dispatchRef = useRef<HTMLInputElement>(null);
+  const paymentRef  = useRef<HTMLInputElement>(null);
+  const [preview, setPreview] = useState<string | null>(null); // visor de comprobantes en historial
 
   const isDriver  = userRole === "CONDUCTOR";
   const canEdit   = ["ADMINISTRADOR", "JEFE_TRANSPORTE", "SUPERVISOR", "CONDUCTOR"].includes(userRole);
@@ -56,7 +67,8 @@ export default function FuelClient({
   function openNew() {
     setEditing(null);
     setForm({ ...EMPTY_FORM, unitId: defaultUnitId ?? "" });
-    setScanned(false); setScanPreview(""); setError(""); setShowForm(true);
+    setSlots({ DESPACHO: { ...EMPTY_SLOT }, PAGO: { ...EMPTY_SLOT } });
+    setError(""); setShowForm(true);
   }
   function openEdit(r: FuelRec) {
     setEditing(r);
@@ -65,47 +77,83 @@ export default function FuelClient({
       liters: String(r.liters), pricePerLiter: r.pricePerLiter ? String(r.pricePerLiter) : "",
       totalCost: r.totalCost ? String(r.totalCost) : "", odometer: String(r.odometer),
       station: r.station ?? "", fuelType: r.fuelType, notes: r.notes ?? "",
+      driverName: r.driverName ?? "", driverDni: r.driverDni ?? "",
+      receiptDispatchUrl: r.receiptDispatchUrl ?? "", receiptPaymentUrl: r.receiptPaymentUrl ?? "",
     });
-    setScanned(false); setScanPreview(""); setError(""); setShowForm(true);
+    setSlots({ DESPACHO: { ...EMPTY_SLOT }, PAGO: { ...EMPTY_SLOT } });
+    setError(""); setShowForm(true);
   }
 
-  /* ── Scan voucher with AI ── */
-  async function handleScan(e: React.ChangeEvent<HTMLInputElement>) {
+  const matchPlate = (plate?: string) => {
+    if (!plate) return null;
+    const norm = plate.replace(/[-\s]/g, "").toUpperCase();
+    return units.find(u => u.plate.replace(/[-\s]/g, "").toUpperCase() === norm) ?? null;
+  };
+
+  function setSlot(slot: SlotKey, patch: Partial<SlotState>) {
+    setSlots(prev => ({ ...prev, [slot]: { ...prev[slot], ...patch } }));
+  }
+
+  /* ── Escanear un comprobante (vale de despacho o pago) ── */
+  async function handleScan(slot: SlotKey, e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    setScanning(true); setScanned(false); setError("");
-    setScanPreview(URL.createObjectURL(file));
+    setSlot(slot, { scanning: true, done: false, error: "", preview: URL.createObjectURL(file) });
+    setError("");
 
+    // 1) Leer/validar con la IA
     const fd = new FormData();
     fd.append("file", file);
+    fd.append("expectedType", slot);
     const res  = await fetch("/api/parse-fuel", { method: "POST", body: fd });
     const data = await res.json();
-    setScanning(false);
 
     if (!res.ok) {
-      setError(data.error ?? "No se pudo leer el voucher");
-      setScanPreview(""); return;
+      setSlot(slot, { scanning: false, done: false, error: data.error ?? "No se pudo leer el comprobante", preview: "" });
+      if (slot === "DESPACHO" && dispatchRef.current) dispatchRef.current.value = "";
+      if (slot === "PAGO" && paymentRef.current) paymentRef.current.value = "";
+      return;
     }
 
-    // Match plate to unit
-    let detectedUnitId = form.unitId;
-    if (data.plate) {
-      const match = units.find(u => u.plate.replace(/[-\s]/g, "").toUpperCase() === data.plate.replace(/[-\s]/g, "").toUpperCase());
-      if (match) detectedUnitId = match.id;
-    }
+    // 2) Subir la foto a Cloudinary para guardarla como comprobante
+    let uploadedUrl = "";
+    try {
+      const up = new FormData();
+      up.append("file", file);
+      up.append("folder", "combustible");
+      const upRes = await fetch("/api/upload", { method: "POST", body: up });
+      if (upRes.ok) uploadedUrl = (await upRes.json()).url ?? "";
+    } catch { /* si falla la subida, igual usamos los datos extraídos */ }
 
-    setForm(f => ({
-      ...f,
-      unitId:       detectedUnitId || f.unitId,
-      date:         data.date         ?? f.date,
-      liters:       data.liters       != null ? String(data.liters) : f.liters,
-      totalCost:    data.totalCost    != null ? String(data.totalCost) : f.totalCost,
-      odometer:     data.odometer     != null ? String(data.odometer) : f.odometer,
-      station:      data.station      ?? f.station,
-      fuelType:     data.fuelType     ?? f.fuelType,
-    }));
-    setScanned(true);
-    if (scanRef.current) scanRef.current.value = "";
+    // 3) Combinar datos en el formulario según el tipo
+    setForm(f => {
+      const next = { ...f };
+      const match = matchPlate(data.plate);
+      if (match) next.unitId = match.id;
+      if (data.date) next.date = data.date;
+
+      if (slot === "DESPACHO") {
+        if (data.liters   != null) next.liters   = String(data.liters);
+        if (data.fuelType)         next.fuelType = data.fuelType;
+        if (data.odometer != null) next.odometer = String(data.odometer); // km automático del vale
+        if (data.station)          next.station  = data.station;
+      } else { // PAGO
+        if (data.totalCost != null) next.totalCost = String(data.totalCost);
+        if (data.driverName)        next.driverName = data.driverName;
+        if (data.driverDni)         next.driverDni  = data.driverDni;
+      }
+      if (uploadedUrl) {
+        if (slot === "DESPACHO") next.receiptDispatchUrl = uploadedUrl;
+        else                     next.receiptPaymentUrl  = uploadedUrl;
+      }
+      // Recalcular precio por galón si tenemos total y galones
+      const lit = parseFloat(next.liters), tot = parseFloat(next.totalCost);
+      if (lit > 0 && tot > 0) next.pricePerLiter = (tot / lit).toFixed(2);
+      return next;
+    });
+    setSlot(slot, { scanning: false, done: true, error: "", url: uploadedUrl });
+    if (slot === "DESPACHO" && dispatchRef.current) dispatchRef.current.value = "";
+    if (slot === "PAGO" && paymentRef.current) paymentRef.current.value = "";
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -250,7 +298,7 @@ export default function FuelClient({
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50 border-b">
                     <tr>
-                      {["Fecha","Unidad","Galones","Precio/Gal","Costo total","Odómetro","Rendimiento","Grifo",""].map(h => (
+                      {["Fecha","Unidad","Galones","Precio/Gal","Costo total","Odómetro","Rendimiento","Grifo","Comprob.",""].map(h => (
                         <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -284,6 +332,19 @@ export default function FuelClient({
                             ) : <span className="text-gray-300 text-xs">—</span>}
                           </td>
                           <td className="px-4 py-3 text-gray-500 text-xs">{r.station ?? "—"}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-1">
+                              {r.receiptDispatchUrl && (
+                                <button onClick={() => setPreview(r.receiptDispatchUrl!)} title="Vale de despacho"
+                                  className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg"><Receipt size={14}/></button>
+                              )}
+                              {r.receiptPaymentUrl && (
+                                <button onClick={() => setPreview(r.receiptPaymentUrl!)} title="Comprobante de pago"
+                                  className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg"><FileText size={14}/></button>
+                              )}
+                              {!r.receiptDispatchUrl && !r.receiptPaymentUrl && <span className="text-gray-300 text-xs">—</span>}
+                            </div>
+                          </td>
                           <td className="px-4 py-3">
                             {canEdit && !isDriver && (
                               <div className="flex items-center gap-1">
@@ -341,49 +402,65 @@ export default function FuelClient({
 
             <div className="overflow-y-auto flex-1 px-6 py-5 space-y-4">
 
-              {/* ── Escanear voucher ── */}
+              {/* ── Escanear comprobantes: 2 casillas ── */}
               {!editing && (
-                <div className="rounded-xl border-2 border-dashed border-amber-200 bg-amber-50 p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="bg-amber-100 p-2 rounded-xl shrink-0">
-                      <Receipt size={18} className="text-amber-600" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-amber-800">Escanear voucher de carga</p>
-                      <p className="text-xs text-amber-700 mt-0.5">Sube la foto del recibo Repsol, Primax, Niubiz, etc. La IA extrae automáticamente los datos</p>
-                      <div className="flex items-center gap-3 mt-3 flex-wrap">
-                        <button type="button" onClick={() => scanRef.current?.click()} disabled={scanning}
-                          className="flex items-center gap-2 text-sm bg-amber-500 hover:bg-amber-600 text-white px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50">
-                          {scanning
-                            ? <><Loader2 size={14} className="animate-spin"/> Analizando voucher…</>
-                            : <><ScanLine size={14}/> Subir foto del voucher</>}
-                        </button>
-                        {scanned && (
-                          <span className="flex items-center gap-1.5 text-green-700 text-xs font-medium">
-                            <CheckCircle2 size={14}/> Datos extraídos ✓
-                          </span>
-                        )}
-                      </div>
-                      {/* Miniatura del voucher escaneado */}
-                      {scanPreview && (
-                        <div className="mt-3 flex items-start gap-2">
-                          <img src={scanPreview} alt="voucher" className="w-20 h-28 object-cover rounded-lg border border-amber-200 shadow-sm" />
-                          {scanned && (
-                            <div className="text-xs text-amber-800 bg-amber-100 rounded-lg p-2">
-                              <p className="font-semibold mb-1">Datos detectados:</p>
-                              {form.unitId && <p>📍 Placa: <strong>{units.find(u => u.id === form.unitId)?.plate}</strong></p>}
-                              {form.date && <p>📅 Fecha: <strong>{form.date}</strong></p>}
-                              {form.liters && <p>⛽ Galones: <strong>{form.liters} Gal</strong></p>}
-                              {form.totalCost && <p>💰 Total: <strong>S/ {form.totalCost}</strong></p>}
-                              {form.odometer && <p>🛣️ KM: <strong>{Number(form.odometer).toLocaleString()}</strong></p>}
-                              {form.station && <p>🏪 Grifo: <strong>{form.station}</strong></p>}
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Receipt size={16} className="text-amber-600" />
+                    <p className="text-sm font-semibold text-amber-800">Sube las fotos de los comprobantes</p>
+                  </div>
+                  <p className="text-xs text-amber-700 mb-3">La IA lee los datos automáticamente. Puedes subir uno o los dos comprobantes.</p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {(["DESPACHO", "PAGO"] as SlotKey[]).map(slot => {
+                      const s = slots[slot];
+                      const info = SLOT_INFO[slot];
+                      const ref = slot === "DESPACHO" ? dispatchRef : paymentRef;
+                      return (
+                        <div key={slot} className={`rounded-xl border-2 border-dashed bg-white p-3 transition-colors ${s.done ? "border-green-300" : s.error ? "border-red-300" : "border-amber-200"}`}>
+                          <p className="text-xs font-bold text-gray-700">{info.label}</p>
+                          <p className="text-[11px] text-gray-400 leading-tight mt-0.5 mb-2">{info.hint}</p>
+
+                          {s.preview && !s.error ? (
+                            <div className="flex items-start gap-2">
+                              <img src={s.preview} alt={slot} className="w-16 h-20 object-cover rounded-lg border border-gray-200 shadow-sm" />
+                              <div className="text-[11px] flex-1">
+                                {s.done && <p className="flex items-center gap-1 text-green-700 font-semibold mb-1"><CheckCircle2 size={12}/> Leído ✓</p>}
+                                {slot === "DESPACHO" && (
+                                  <>
+                                    {form.liters && <p>⛽ <strong>{form.liters} Gal</strong></p>}
+                                    {form.odometer && <p>🛣️ <strong>{Number(form.odometer).toLocaleString()} km</strong></p>}
+                                  </>
+                                )}
+                                {slot === "PAGO" && (
+                                  <>
+                                    {form.totalCost && <p>💰 <strong>S/ {form.totalCost}</strong></p>}
+                                    {form.driverName && <p>👤 <strong>{form.driverName}</strong></p>}
+                                  </>
+                                )}
+                                <button type="button" onClick={() => ref.current?.click()} className="text-blue-600 hover:underline mt-1">Cambiar foto</button>
+                              </div>
+                            </div>
+                          ) : (
+                            <button type="button" onClick={() => ref.current?.click()} disabled={s.scanning}
+                              className="w-full flex flex-col items-center justify-center gap-1.5 py-4 text-amber-600 hover:text-amber-700 disabled:opacity-60">
+                              {s.scanning
+                                ? <><Loader2 size={20} className="animate-spin"/> <span className="text-xs">Analizando…</span></>
+                                : <><Camera size={22}/> <span className="text-xs font-medium">Tomar / subir foto</span></>}
+                            </button>
+                          )}
+
+                          {s.error && (
+                            <div className="mt-2 flex items-start gap-1.5 text-[11px] text-red-700 bg-red-50 rounded-lg p-2">
+                              <AlertCircle size={13} className="shrink-0 mt-0.5" />
+                              <span>{s.error}</span>
                             </div>
                           )}
+                          <input ref={ref} type="file" accept="image/*" capture="environment" className="hidden" onChange={e => handleScan(slot, e)} />
                         </div>
-                      )}
-                    </div>
+                      );
+                    })}
                   </div>
-                  <input ref={scanRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleScan} />
                 </div>
               )}
 
@@ -437,6 +514,16 @@ export default function FuelClient({
                   <input value={form.station} onChange={e => set("station", e.target.value)} placeholder="Ej: Repsol Callao"
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 block mb-1">Conductor <span className="text-gray-400 font-normal">(del voucher)</span></label>
+                  <input value={form.driverName} onChange={e => set("driverName", e.target.value)} placeholder="Nombre"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 block mb-1">DNI conductor</label>
+                  <input value={form.driverDni} onChange={e => set("driverDni", e.target.value)} placeholder="Ej: 41885898"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
                 <div className="col-span-2">
                   <label className="text-xs font-semibold text-gray-700 block mb-1">Notas</label>
                   <textarea value={form.notes} onChange={e => set("notes", e.target.value)} rows={2}
@@ -451,7 +538,7 @@ export default function FuelClient({
             <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
               <button type="button" onClick={() => setShowForm(false)}
                 className="flex-1 border border-gray-200 rounded-xl py-2.5 text-sm font-medium hover:bg-gray-50">Cancelar</button>
-              <button type="button" onClick={handleSubmit} disabled={loading || scanning}
+              <button type="button" onClick={handleSubmit} disabled={loading || slots.DESPACHO.scanning || slots.PAGO.scanning}
                 className="flex-1 bg-blue-800 text-white rounded-xl py-2.5 text-sm font-semibold hover:bg-blue-700 disabled:opacity-60">
                 {loading ? "Guardando…" : "Confirmar y Guardar"}
               </button>
@@ -459,6 +546,8 @@ export default function FuelClient({
           </div>
         </div>
       )}
+
+      {preview && <FilePreview url={preview} title="Comprobante de combustible" onClose={() => setPreview(null)} />}
     </div>
   );
 }
