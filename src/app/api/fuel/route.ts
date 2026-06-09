@@ -67,6 +67,7 @@ export async function POST(req: NextRequest) {
       totalCost:     body.totalCost ? Number(body.totalCost) : null,
       odometer:      Number(body.odometer),
       station:       body.station || null,
+      stationName:   body.stationName || null,
       fuelType:      body.fuelType || "DIESEL",
       loadType:      body.loadType === "GENERADOR" ? "GENERADOR" : "TRACTO",
       notes:         body.notes || null,

@@ -9,7 +9,7 @@ import FilePreview from "@/components/common/FilePreview";
 const FuelEfficiencyChart = dynamic(() => import("./FuelEfficiencyChart"), { ssr: false });
 
 const FUEL_TYPES: Record<string, string> = { DIESEL: "Diésel", GASOLINA: "Gasolina", GNV: "GNV" };
-const EMPTY_FORM = { unitId: "", date: "", liters: "", pricePerLiter: "", totalCost: "", odometer: "", station: "", fuelType: "DIESEL", loadType: "TRACTO", notes: "", driverName: "", driverDni: "", receiptDispatchUrl: "", receiptPaymentUrl: "" };
+const EMPTY_FORM = { unitId: "", date: "", liters: "", pricePerLiter: "", totalCost: "", odometer: "", station: "", stationName: "", fuelType: "DIESEL", loadType: "TRACTO", notes: "", driverName: "", driverDni: "", receiptDispatchUrl: "", receiptPaymentUrl: "" };
 // Umbral: si el km del comprobante es muy bajo, la carga es para el generador (no tiene odómetro real)
 const GENERADOR_KM_MAX = 100;
 // Nota: el campo "liters" en DB almacena galones (unidad de la empresa)
@@ -26,7 +26,7 @@ interface Unit    { id: string; plate: string; model: string }
 interface FuelRec {
   id: string; unitId: string; date: string; liters: number;
   pricePerLiter: number | null; totalCost: number | null; odometer: number;
-  station: string | null; fuelType: string; loadType?: string; notes: string | null;
+  station: string | null; stationName?: string | null; fuelType: string; loadType?: string; notes: string | null;
   kmPerLiter: number | null;
   driverName?: string | null; driverDni?: string | null;
   receiptDispatchUrl?: string | null; receiptPaymentUrl?: string | null;
@@ -81,7 +81,7 @@ export default function FuelClient({
       unitId: r.unitId, date: format(new Date(r.date), "yyyy-MM-dd"),
       liters: String(r.liters), pricePerLiter: r.pricePerLiter ? String(r.pricePerLiter) : "",
       totalCost: r.totalCost ? String(r.totalCost) : "", odometer: String(r.odometer),
-      station: r.station ?? "", fuelType: r.fuelType, loadType: r.loadType ?? "TRACTO", notes: r.notes ?? "",
+      station: r.station ?? "", stationName: r.stationName ?? "", fuelType: r.fuelType, loadType: r.loadType ?? "TRACTO", notes: r.notes ?? "",
       driverName: r.driverName ?? "", driverDni: r.driverDni ?? "",
       receiptDispatchUrl: r.receiptDispatchUrl ?? "", receiptPaymentUrl: r.receiptPaymentUrl ?? "",
     });
@@ -146,6 +146,7 @@ export default function FuelClient({
         if (data.liters   != null) next.liters   = String(data.liters);
         if (data.fuelType)         next.fuelType = data.fuelType;
         if (data.station)          next.station  = data.station;
+        if (data.stationName)      next.stationName = data.stationName;
       } else { // PAGO
         if (data.totalCost != null) next.totalCost = String(data.totalCost);
         if (data.odometer  != null) {
@@ -352,7 +353,14 @@ export default function FuelClient({
                               </span>
                             ) : <span className="text-gray-300 text-xs">—</span>}
                           </td>
-                          <td className="px-4 py-3 text-gray-500 text-xs">{r.station ?? "—"}</td>
+                          <td className="px-4 py-3 text-xs max-w-[200px]">
+                            {r.stationName || r.station ? (
+                              <>
+                                <p className="text-gray-700 font-medium">{r.stationName || r.station}</p>
+                                {r.stationName && r.station && <p className="text-gray-400">{r.station}</p>}
+                              </>
+                            ) : <span className="text-gray-300">—</span>}
+                          </td>
                           <td className="px-4 py-3 text-xs">
                             {r.driverName ? (
                               <>
@@ -458,7 +466,7 @@ export default function FuelClient({
                                 {slot === "DESPACHO" && (
                                   <>
                                     {form.liters && <p>⛽ <strong>{form.liters} Gal</strong></p>}
-                                    {form.station && <p>🏪 <strong>{form.station}</strong></p>}
+                                    {(form.stationName || form.station) && <p>🏪 <strong>{form.stationName || form.station}</strong></p>}
                                   </>
                                 )}
                                 {slot === "PAGO" && (
@@ -565,8 +573,13 @@ export default function FuelClient({
                   </div>
                 </div>
                 <div className="col-span-2">
-                  <label className="text-xs font-semibold text-gray-700 block mb-1">Grifo / Estación</label>
-                  <input value={form.station} onChange={e => set("station", e.target.value)} placeholder="Ej: Repsol Callao"
+                  <label className="text-xs font-semibold text-gray-700 block mb-1">Empresa / Razón social</label>
+                  <input value={form.station} onChange={e => set("station", e.target.value)} placeholder="Ej: REPSOL COMERCIAL S.A.C."
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+                <div className="col-span-2">
+                  <label className="text-xs font-semibold text-gray-700 block mb-1">Nombre / dirección del grifo</label>
+                  <input value={form.stationName} onChange={e => set("stationName", e.target.value)} placeholder="Ej: San Carlos, Car. Panamericana Norte Km 28.3, Puente Piedra"
                     className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
                 <div>
