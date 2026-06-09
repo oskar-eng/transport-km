@@ -33,7 +33,7 @@ interface FuelRec {
   unit: { plate: string; model: string };
 }
 
-interface DriverCard { holderName: string; monthlyLimit: number; consumido: number; disponible: number; cardNumber: string | null }
+interface DriverCard { holderName: string; holderDni: string; unitId: string | null; monthlyLimit: number; consumido: number; disponible: number; cardNumber: string | null }
 
 export default function FuelClient({
   records: initial, units, userRole, defaultUnitId, driverCard,
@@ -266,6 +266,19 @@ export default function FuelClient({
     });
   }, [records]);
 
+  // Saldo de tarjeta recalculado en vivo desde los registros en pantalla (se actualiza al guardar sin refrescar)
+  const cardSaldo = useMemo(() => {
+    if (!driverCard) return null;
+    const now = new Date();
+    const consumido = records.reduce((s, r) => {
+      const d = new Date(r.date);
+      const sameMonth = d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+      const match = r.driverDni === driverCard.holderDni || (driverCard.unitId != null && r.unitId === driverCard.unitId);
+      return sameMonth && match ? s + (r.totalCost ?? 0) : s;
+    }, 0);
+    return { ...driverCard, consumido, disponible: Math.max(0, driverCard.monthlyLimit - consumido) };
+  }, [records, driverCard]);
+
   const totalLiters = records.reduce((s, r) => s + r.liters, 0);
   const totalCost   = records.reduce((s, r) => s + (r.totalCost ?? 0), 0);
   const allKmL      = records.filter(r => r.kmPerLiter != null).map(r => r.kmPerLiter as number);
@@ -290,22 +303,22 @@ export default function FuelClient({
         )}
       </div>
 
-      {/* Banner de saldo de tarjeta — para conductores */}
-      {driverCard && (() => {
-        const pct = driverCard.monthlyLimit > 0 ? Math.min(100, (driverCard.disponible / driverCard.monthlyLimit) * 100) : 0;
+      {/* Banner de saldo de tarjeta — para conductores (se actualiza al guardar) */}
+      {cardSaldo && (() => {
+        const pct = cardSaldo.monthlyLimit > 0 ? Math.min(100, (cardSaldo.disponible / cardSaldo.monthlyLimit) * 100) : 0;
         const low = pct <= 15;
         const fmt = (n: number) => `S/ ${n.toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
         return (
           <div className={`mb-6 rounded-2xl p-5 text-white bg-gradient-to-br ${low ? "from-red-600 to-red-800" : "from-blue-700 to-blue-900"}`}>
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div>
-                <p className="text-white/70 text-xs uppercase tracking-wide">Tu tarjeta Petrothor{driverCard.cardNumber ? ` · ${driverCard.cardNumber}` : ""}</p>
-                <p className="text-3xl font-extrabold mt-1">{fmt(driverCard.disponible)}</p>
-                <p className="text-white/70 text-xs mt-0.5">disponible de {fmt(driverCard.monthlyLimit)} este mes</p>
+                <p className="text-white/70 text-xs uppercase tracking-wide">Tu tarjeta Petrothor{cardSaldo.cardNumber ? ` · ${cardSaldo.cardNumber}` : ""}</p>
+                <p className="text-3xl font-extrabold mt-1">{fmt(cardSaldo.disponible)}</p>
+                <p className="text-white/70 text-xs mt-0.5">disponible de {fmt(cardSaldo.monthlyLimit)} este mes</p>
               </div>
               <div className="text-right">
                 <p className="text-white/70 text-xs">Consumido</p>
-                <p className="text-lg font-bold">{fmt(driverCard.consumido)}</p>
+                <p className="text-lg font-bold">{fmt(cardSaldo.consumido)}</p>
               </div>
             </div>
             <div className="w-full h-2.5 bg-white/20 rounded-full overflow-hidden mt-3">
