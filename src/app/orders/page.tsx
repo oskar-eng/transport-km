@@ -54,6 +54,7 @@ export default async function OrdersPage() {
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">Cliente</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">Unidad</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">Conductor</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-600">Km recorridos</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">Progreso</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-600">Estado</th>
               </tr>
@@ -61,7 +62,7 @@ export default async function OrdersPage() {
             <tbody className="divide-y">
               {orders.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center text-gray-400 py-10">
+                  <td colSpan={8} className="text-center text-gray-400 py-10">
                     Sin órdenes registradas
                   </td>
                 </tr>
@@ -69,6 +70,12 @@ export default async function OrdersPage() {
                 orders.map((order) => {
                   const totalEvents = order.type === "EXPORTACION" ? 12 : 11;
                   const pct = Math.round((order.events.length / totalEvents) * 100);
+                  // Km recorridos = último odómetro - primero (eventos con odómetro)
+                  const odos = order.events
+                    .filter(e => e.odometer != null)
+                    .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
+                    .map(e => e.odometer as number);
+                  const kmRec = odos.length >= 2 ? Math.max(0, odos[odos.length - 1] - odos[0]) : null;
                   return (
                     <tr key={order.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3">
@@ -84,6 +91,7 @@ export default async function OrdersPage() {
                       <td className="px-4 py-3 text-gray-700">{order.clientName}</td>
                       <td className="px-4 py-3 font-mono text-gray-700">{order.unit.plate}</td>
                       <td className="px-4 py-3 text-gray-700">{order.driver.name}</td>
+                      <td className="px-4 py-3 font-semibold text-gray-800">{kmRec != null ? `${kmRec.toLocaleString()} km` : <span className="text-gray-300 font-normal text-xs">—</span>}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <div className="flex-1 bg-gray-200 rounded-full h-1.5 min-w-[60px]">

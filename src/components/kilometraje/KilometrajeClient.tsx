@@ -5,7 +5,7 @@ import { es } from "date-fns/locale";
 import { Gauge, Search, Download, Loader2, UserRound, Truck, Package } from "lucide-react";
 
 interface Order {
-  id: string; orderNumber: number; type: string; status: string; clientName: string;
+  id: string; orderNumber: string; type: string; status: string; clientName: string;
   date: string; driverName: string; plate: string; model: string; km: number; hasData: boolean;
 }
 
