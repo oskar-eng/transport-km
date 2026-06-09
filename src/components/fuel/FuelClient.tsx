@@ -2,7 +2,7 @@
 import { useState, useMemo, useRef } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { Plus, Pencil, Trash2, Fuel, TrendingUp, TrendingDown, Minus, AlertTriangle, Loader2, CheckCircle2, X, Receipt, Camera, AlertCircle, FileText } from "lucide-react";
+import { Plus, Pencil, Trash2, Fuel, TrendingUp, TrendingDown, Minus, AlertTriangle, Loader2, CheckCircle2, X, Receipt, Camera, AlertCircle, FileText, Search, Download } from "lucide-react";
 import dynamic from "next/dynamic";
 import FilePreview from "@/components/common/FilePreview";
 
@@ -45,6 +45,8 @@ export default function FuelClient({
   const [loading, setLoading]       = useState(false);
   const [error, setError]           = useState("");
   const [filterUnit, setFilterUnit] = useState("TODOS");
+  const [search, setSearch]         = useState("");
+  const [exporting, setExporting]   = useState(false);
   const [activeTab, setActiveTab]   = useState<"lista" | "resumen">("lista");
 
   // Scan state — dos casillas (vale de despacho + comprobante de pago)
@@ -199,10 +201,51 @@ export default function FuelClient({
     setRecords(p => p.filter(r => r.id !== id));
   }
 
-  const filtered = useMemo(() =>
-    records.filter(r => filterUnit === "TODOS" || r.unitId === filterUnit),
-    [records, filterUnit]
-  );
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase().replace(/[-\s]/g, "");
+    return records.filter(r => {
+      if (filterUnit !== "TODOS" && r.unitId !== filterUnit) return false;
+      if (!q) return true;
+      const hay = [
+        r.unit.plate.replace(/[-\s]/g, ""),
+        r.driverName ?? "",
+        r.driverDni ?? "",
+        r.stationName ?? "",
+      ].join(" ").toLowerCase();
+      return hay.includes(q);
+    });
+  }, [records, filterUnit, search]);
+
+  /* ── Exportar a Excel ── */
+  async function exportExcel() {
+    setExporting(true);
+    try {
+      const XLSX = await import("xlsx");
+      const rows = filtered.map(r => ({
+        Fecha: format(new Date(r.date), "dd/MM/yyyy"),
+        Placa: r.unit.plate,
+        Modelo: r.unit.model,
+        Destino: (r.loadType === "GENERADOR" || r.odometer <= GENERADOR_KM_MAX) ? "Generador" : "Tracto",
+        "Tipo combustible": FUEL_TYPES[r.fuelType] ?? r.fuelType,
+        Galones: r.liters,
+        "Precio/Gal": r.pricePerLiter ?? "",
+        "Costo total": r.totalCost ?? "",
+        "Odómetro (km)": r.odometer,
+        "Rendimiento (km/Gal)": r.kmPerLiter ?? "",
+        Grifo: r.stationName ?? r.station ?? "",
+        Empresa: r.station ?? "",
+        Dirección: r.stationAddress ?? "",
+        Conductor: r.driverName ?? "",
+        DNI: r.driverDni ?? "",
+      }));
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Combustible");
+      XLSX.writeFile(wb, `combustible_${format(new Date(), "yyyy-MM-dd")}.xlsx`);
+    } finally {
+      setExporting(false);
+    }
+  }
 
   const unitSummary = useMemo(() => {
     const map: Record<string, { plate: string; model: string; totalLiters: number; totalCost: number; records: FuelRec[] }> = {};
@@ -288,14 +331,28 @@ export default function FuelClient({
         </div>
       )}
 
-      {/* Filtro unidad — solo para no conductores */}
-      {!isDriver && (
-        <div className="mb-4">
+      {/* Buscador, filtro y exportar — solo para no conductores */}
+      {!isDriver && (isDriver || activeTab === "lista") && (
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-[200px] max-w-sm">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Buscar por placa, conductor o DNI…"
+              className="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            {search && (
+              <button onClick={() => setSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"><X size={14} /></button>
+            )}
+          </div>
           <select value={filterUnit} onChange={e => setFilterUnit(e.target.value)}
             className="border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
             <option value="TODOS">Todas las unidades</option>
             {units.map(u => <option key={u.id} value={u.id}>{u.plate} — {u.model}</option>)}
           </select>
+          <button onClick={exportExcel} disabled={exporting || filtered.length === 0}
+            className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 ml-auto">
+            {exporting ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+            Exportar Excel
+          </button>
         </div>
       )}
 
