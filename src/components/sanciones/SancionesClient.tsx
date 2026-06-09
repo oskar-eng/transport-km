@@ -2,8 +2,18 @@
 import { useState, useMemo, useRef } from "react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { Plus, Trash2, X, AlertOctagon, Upload, Loader2, FileText, Truck, UserRound } from "lucide-react";
+import { Plus, Trash2, X, AlertOctagon, Upload, Loader2, FileText, Truck, UserRound, Search, ExternalLink, Copy, Check } from "lucide-react";
 import FilePreview from "@/components/common/FilePreview";
+
+// Portales oficiales gratuitos de consulta por placa (Perú)
+const PORTALES = [
+  { name: "MTC — Consulta de Papeletas", desc: "Papeletas e infracciones a nivel nacional", url: "https://scppp.mtc.gob.pe/" },
+  { name: "SUTRAN — Récord de Infracciones", desc: "Infracciones de transporte (desde 2020)", url: "https://www.sutran.gob.pe/consultas/record-de-infracciones/record-de-infracciones/" },
+  { name: "SAT Lima — Papeletas", desc: "Papeletas y multas de tránsito (Lima)", url: "https://www.sat.gob.pe/websitev9/TributosMultas/Papeletas/ConsultasPapeletas" },
+  { name: "SAT Lima — Órdenes de Captura", desc: "Verifica si el vehículo tiene captura", url: "https://www.sat.gob.pe/VirtualSAT/modulos/Capturas.aspx" },
+  { name: "SUNARP — Consulta Vehicular", desc: "Propietario, marca, modelo, alerta de robo", url: "https://consultavehicular.sunarp.gob.pe/consulta-vehicular" },
+  { name: "APESEG — Consulta SOAT", desc: "Verifica el SOAT vigente del vehículo", url: "https://www.apeseg.org.pe/consultas-soat/" },
+];
 
 const TYPES: Record<string, string> = { PAPELETA: "Papeleta", INFRACCION: "Infracción", OTRO: "Otro" };
 const STATUS: Record<string, { label: string; color: string }> = {
@@ -36,6 +46,17 @@ export default function SancionesClient({ sanciones: initial, units, drivers, us
   const [filterStatus, setFilterStatus] = useState("TODOS");
   const [preview, setPreview] = useState<{ url: string; name: string } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  // Consulta externa por placa
+  const [showConsulta, setShowConsulta] = useState(false);
+  const [consultaPlaca, setConsultaPlaca] = useState("");
+  const [copied, setCopied] = useState(false);
+
+  function copyPlaca() {
+    if (!consultaPlaca) return;
+    navigator.clipboard?.writeText(consultaPlaca.toUpperCase().trim());
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
 
   function set(f: string, v: string) { setForm(p => ({ ...p, [f]: v })); }
 
@@ -80,10 +101,16 @@ export default function SancionesClient({ sanciones: initial, units, drivers, us
           <h1 className="text-2xl font-bold text-gray-900">Sanciones / Multas</h1>
           <p className="text-sm text-gray-400 mt-0.5">Papeletas e infracciones por unidad y conductor</p>
         </div>
-        <button onClick={() => { setForm({ ...EMPTY }); setError(""); setShowForm(true); }}
-          className="flex items-center gap-2 bg-blue-800 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
-          <Plus size={16} /> Registrar Sanción
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setShowConsulta(true)}
+            className="flex items-center gap-2 bg-white border border-blue-200 text-blue-700 hover:bg-blue-50 text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
+            <Search size={16} /> Consultar Papeletas
+          </button>
+          <button onClick={() => { setForm({ ...EMPTY }); setError(""); setShowForm(true); }}
+            className="flex items-center gap-2 bg-blue-800 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
+            <Plus size={16} /> Registrar Sanción
+          </button>
+        </div>
       </div>
 
       {/* KPIs */}
@@ -229,6 +256,60 @@ export default function SancionesClient({ sanciones: initial, units, drivers, us
       )}
 
       {preview && <FilePreview url={preview.url} filename={preview.name} title="Documento" onClose={() => setPreview(null)} />}
+
+      {/* Modal consulta externa por placa */}
+      {showConsulta && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowConsulta(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Consultar Papeletas por Placa</h2>
+                <p className="text-xs text-gray-400">Portales oficiales gratuitos (MTC, SUTRAN, SAT, SUNARP, SOAT)</p>
+              </div>
+              <button onClick={() => setShowConsulta(false)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+            </div>
+            <div className="overflow-y-auto flex-1 px-6 py-5 space-y-4">
+              {/* Placa */}
+              <div>
+                <label className="text-xs font-semibold text-gray-700 block mb-1">Placa a consultar</label>
+                <div className="flex gap-2">
+                  <select value={units.find(u => u.plate === consultaPlaca)?.id ?? ""} onChange={e => setConsultaPlaca(units.find(u => u.id === e.target.value)?.plate ?? "")}
+                    className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">— Elegir unidad —</option>
+                    {units.map(u => <option key={u.id} value={u.id}>{u.plate} — {u.model}</option>)}
+                  </select>
+                  <input value={consultaPlaca} onChange={e => setConsultaPlaca(e.target.value.toUpperCase())} placeholder="O escribe la placa"
+                    className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  <button onClick={copyPlaca} disabled={!consultaPlaca} title="Copiar placa"
+                    className="flex items-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 rounded-lg text-sm disabled:opacity-50">
+                    {copied ? <><Check size={15} className="text-green-600" /> Copiado</> : <><Copy size={15} /> Copiar</>}
+                  </button>
+                </div>
+                <p className="text-[11px] text-gray-400 mt-1">Copia la placa y pégala en el portal que abras (cada entidad pide resolver un CAPTCHA).</p>
+              </div>
+
+              {/* Portales */}
+              <div className="space-y-2">
+                {PORTALES.map(p => (
+                  <a key={p.url} href={p.url} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-3 border border-gray-200 rounded-xl px-4 py-3 hover:border-blue-400 hover:bg-blue-50/50 transition-colors group">
+                    <div className="bg-blue-100 text-blue-700 p-2 rounded-lg shrink-0"><Search size={16} /></div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-800">{p.name}</p>
+                      <p className="text-xs text-gray-400 truncate">{p.desc}</p>
+                    </div>
+                    <ExternalLink size={16} className="text-gray-300 group-hover:text-blue-600 shrink-0" />
+                  </a>
+                ))}
+              </div>
+
+              <div className="text-[11px] text-gray-500 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                💡 Estos son los portales oficiales del Estado. Tras consultar, puedes <strong>registrar</strong> aquí las papeletas que encuentres con el botón <strong>“Registrar Sanción”</strong>.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
