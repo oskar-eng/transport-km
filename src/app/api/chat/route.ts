@@ -23,7 +23,23 @@ function detalleDocs<T extends { key: string; label: string }>(
 }
 
 // Modelo gratuito y rápido de Google Gemini
-const GEMINI_MODEL = "gemini-2.5-flash";
+// Si el primer modelo está saturado (429), se intenta con el siguiente (cuota separada).
+const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
+
+async function callGemini(apiKey: string, body: object): Promise<{ ok: true; data: unknown } | { ok: false; status: number }> {
+  let lastStatus = 500;
+  for (const model of GEMINI_MODELS) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    if (res.ok) return { ok: true, data: await res.json() };
+    lastStatus = res.status;
+    const errBody = await res.text();
+    console.error(`gemini ${model} error:`, res.status, errBody.slice(0, 300));
+    if (res.status === 429) continue;
+    break;
+  }
+  return { ok: false, status: lastStatus };
+}
 
 const STATUS_LABELS: Record<string, string> = {
   DISPONIBLE: "Operativo", EN_SERVICIO: "En Servicio",
@@ -127,29 +143,25 @@ ${JSON.stringify(snapshot)}`;
       parts: [{ text: m.content }],
     }));
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: system }] },
-        contents,
-        generationConfig: {
-          maxOutputTokens: 1200,
-          temperature: 0.6,
-          // Desactiva el "pensamiento" de 2.5-flash para respuestas completas, rápidas y económicas
-          thinkingConfig: { thinkingBudget: 0 },
-        },
-      }),
+    const gem = await callGemini(apiKey, {
+      system_instruction: { parts: [{ text: system }] },
+      contents,
+      generationConfig: {
+        maxOutputTokens: 1200,
+        temperature: 0.6,
+        // Desactiva el "pensamiento" de 2.5-flash para respuestas completas, rápidas y económicas
+        thinkingConfig: { thinkingBudget: 0 },
+      },
     });
 
-    if (!res.ok) {
-      const errBody = await res.text();
-      console.error("gemini error:", res.status, errBody);
+    if (!gem.ok) {
+      if (gem.status === 429) {
+        return NextResponse.json({ error: "Estoy atendiendo muchas consultas en este momento 😅. Espera unos segundos e intenta de nuevo, porfa 💙" }, { status: 429 });
+      }
       return NextResponse.json({ error: "El asistente tuvo un problema al responder. Intenta de nuevo." }, { status: 500 });
     }
 
-    const data = await res.json();
+    const data = gem.data as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
     const reply = data?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? "").join("").trim();
     return NextResponse.json({ reply: reply || "No pude generar una respuesta." });
   } catch (err: unknown) {

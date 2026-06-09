@@ -2,8 +2,24 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
-// Modelo de Google Gemini con visión
-const GEMINI_MODEL = "gemini-2.5-flash";
+// Modelos de Google Gemini con visión. Si el primero está saturado (429),
+// se intenta con el siguiente (cada modelo tiene su propia cuota gratuita).
+const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
+
+async function callGemini(apiKey: string, body: object): Promise<{ ok: true; data: unknown } | { ok: false; status: number }> {
+  let lastStatus = 500;
+  for (const model of GEMINI_MODELS) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    if (res.ok) return { ok: true, data: await res.json() };
+    lastStatus = res.status;
+    const errBody = await res.text();
+    console.error(`gemini ${model} error:`, res.status, errBody.slice(0, 300));
+    if (res.status === 429) continue; // saturado → probar el siguiente modelo
+    break; // otro error → no insistir
+  }
+  return { ok: false, status: lastStatus };
+}
 
 // Tipos de comprobante:
 //   DESPACHO = vale del grifo (Repsol/Primax/Petroperú): muestra producto y CANTIDAD de combustible (galones/litros)
@@ -62,36 +78,32 @@ export async function POST(req: NextRequest) {
     const base64 = Buffer.from(bytes).toString("base64");
     const mimeType = file.type || "image/jpeg";
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [
-          {
-            role: "user",
-            parts: [
-              { inline_data: { mime_type: mimeType, data: base64 } },
-              { text: PROMPT },
-            ],
-          },
-        ],
-        generationConfig: {
-          maxOutputTokens: 700,
-          temperature: 0,
-          thinkingConfig: { thinkingBudget: 0 },
-          responseMimeType: "application/json",
+    const gem = await callGemini(apiKey, {
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { inline_data: { mime_type: mimeType, data: base64 } },
+            { text: PROMPT },
+          ],
         },
-      }),
+      ],
+      generationConfig: {
+        maxOutputTokens: 700,
+        temperature: 0,
+        thinkingConfig: { thinkingBudget: 0 },
+        responseMimeType: "application/json",
+      },
     });
 
-    if (!res.ok) {
-      const errBody = await res.text();
-      console.error("parse-fuel gemini error:", res.status, errBody);
+    if (!gem.ok) {
+      if (gem.status === 429) {
+        return NextResponse.json({ error: "El lector está muy ocupado en este momento. Espera unos segundos e intenta de nuevo." }, { status: 429 });
+      }
       return NextResponse.json({ error: "No se pudo procesar el voucher. Intenta con otra foto más clara." }, { status: 500 });
     }
 
-    const result = await res.json();
+    const result = gem.data as { candidates?: { content?: { parts?: { text?: string }[] } }[] };
     const text: string = result?.candidates?.[0]?.content?.parts?.map((p: { text?: string }) => p.text ?? "").join("") ?? "";
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (!jsonMatch) return NextResponse.json({ error: "No se pudo extraer datos del voucher" }, { status: 422 });
