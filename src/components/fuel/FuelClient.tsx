@@ -696,6 +696,13 @@ export default function FuelClient({
                 </div>
               </div>
 
+              {/* Aviso de saldo insuficiente — para conductores con tarjeta */}
+              {!editing && cardSaldo && form.totalCost && parseFloat(form.totalCost) > cardSaldo.disponible && (
+                <div className="flex items-start gap-2 text-sm text-orange-800 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2">
+                  <AlertTriangle size={15} className="shrink-0 mt-0.5 text-orange-500" />
+                  <span>Esta carga (S/ {form.totalCost}) supera tu saldo disponible (S/ {cardSaldo.disponible.toLocaleString("es-PE", { minimumFractionDigits: 2 })}). Verifica el monto antes de guardar.</span>
+                </div>
+              )}
               {error && <p className="text-red-600 text-sm bg-red-50 rounded-lg px-3 py-2">{error}</p>}
             </div>
 

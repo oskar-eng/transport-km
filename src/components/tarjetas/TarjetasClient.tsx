@@ -1,14 +1,16 @@
 "use client";
 import { useState, useMemo } from "react";
-import { Plus, X, CreditCard, Pencil, Trash2, Search } from "lucide-react";
+import { Plus, X, CreditCard, Pencil, Trash2, Search, Download, Loader2, CalendarDays } from "lucide-react";
 
 interface Unit   { id: string; plate: string; model: string }
 interface Driver { id: string; name: string; dni: string }
+interface MonthConsumo { label: string; consumido: number; limite: number }
 interface Card {
   id: string; cardNumber: string | null; provider: string;
   holderName: string; holderDni: string; driverId: string | null;
   unitId: string | null; unit: { plate: string; model: string } | null;
   monthlyLimit: number; active: boolean; consumido: number; disponible: number;
+  history?: MonthConsumo[];
 }
 
 const money = (n: number) => `S/ ${n.toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -26,12 +28,31 @@ export default function TarjetasClient({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [exporting, setExporting] = useState(false);
+  const [historyCard, setHistoryCard] = useState<Card | null>(null);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase().replace(/[-\s]/g, "");
     if (!q) return cards;
     return cards.filter(c => [c.holderName, c.holderDni, c.unit?.plate ?? "", c.cardNumber ?? ""].join(" ").toLowerCase().replace(/[-\s]/g, "").includes(q));
   }, [cards, search]);
+
+  async function exportExcel() {
+    setExporting(true);
+    try {
+      const XLSX = await import("xlsx");
+      const rows = filtered.map(c => ({
+        Conductor: c.holderName, DNI: c.holderDni, "N° tarjeta": c.cardNumber ?? "",
+        Unidad: c.unit?.plate ?? "", Proveedor: c.provider,
+        "Saldo mensual": c.monthlyLimit, "Consumido (mes)": c.consumido, "Disponible": c.disponible,
+        Estado: c.active ? "Activa" : "Inactiva",
+      }));
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Tarjetas");
+      XLSX.writeFile(wb, `tarjetas_combustible_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } finally { setExporting(false); }
+  }
 
   const totalLimite = cards.reduce((s, c) => s + c.monthlyLimit, 0);
   const totalConsumido = cards.reduce((s, c) => s + c.consumido, 0);
@@ -100,11 +121,17 @@ export default function TarjetasClient({
         ))}
       </div>
 
-      {/* Buscador */}
-      <div className="mb-4 relative max-w-sm">
-        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por conductor, DNI o placa…"
-          className="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+      {/* Buscador + Exportar */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por conductor, DNI o placa…"
+            className="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+        </div>
+        <button onClick={exportExcel} disabled={exporting || filtered.length === 0}
+          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 ml-auto">
+          {exporting ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />} Exportar Excel
+        </button>
       </div>
 
       {filtered.length === 0 ? (
@@ -127,12 +154,17 @@ export default function TarjetasClient({
                       <p className="text-xs text-gray-400">DNI {c.holderDni}{c.cardNumber ? ` · ${c.cardNumber}` : ""}</p>
                     </div>
                   </div>
-                  {canAdmin && (
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => openEdit(c)} className="p-1.5 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50"><Pencil size={13} /></button>
-                      <button onClick={() => del(c.id)} className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50"><Trash2 size={13} /></button>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-1">
+                    {c.history && c.history.length > 0 && (
+                      <button onClick={() => setHistoryCard(c)} title="Historial mensual" className="p-1.5 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50"><CalendarDays size={14} /></button>
+                    )}
+                    {canAdmin && (
+                      <>
+                        <button onClick={() => openEdit(c)} className="p-1.5 text-gray-400 hover:text-blue-600 rounded-lg hover:bg-blue-50"><Pencil size={13} /></button>
+                        <button onClick={() => del(c.id)} className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50"><Trash2 size={13} /></button>
+                      </>
+                    )}
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between text-xs text-gray-500 mb-1.5">
@@ -216,6 +248,41 @@ export default function TarjetasClient({
             <div className="px-6 py-4 border-t border-gray-100 flex gap-3">
               <button onClick={() => setShow(false)} className="flex-1 border border-gray-200 rounded-xl py-2.5 text-sm font-medium hover:bg-gray-50">Cancelar</button>
               <button onClick={save} disabled={saving} className="flex-1 bg-blue-800 text-white rounded-xl py-2.5 text-sm font-semibold hover:bg-blue-700 disabled:opacity-60">{saving ? "Guardando…" : "Guardar"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal historial mensual */}
+      {historyCard && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setHistoryCard(null)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Consumo mensual</h2>
+                <p className="text-xs text-gray-400">{historyCard.holderName} · {historyCard.unit?.plate ?? "—"}</p>
+              </div>
+              <button onClick={() => setHistoryCard(null)} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+            </div>
+            <div className="px-6 py-5 space-y-3">
+              {(historyCard.history ?? []).map((m, i) => {
+                const pct = m.limite > 0 ? Math.min(100, (m.consumido / m.limite) * 100) : 0;
+                const over = m.consumido > m.limite;
+                return (
+                  <div key={i}>
+                    <div className="flex items-center justify-between text-sm mb-1">
+                      <span className="capitalize text-gray-600">{m.label}</span>
+                      <span className={`font-semibold ${over ? "text-red-600" : "text-gray-800"}`}>{money(m.consumido)}<span className="text-gray-400 font-normal"> / {money(m.limite)}</span></span>
+                    </div>
+                    <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full ${over ? "bg-red-500" : "bg-blue-600"}`} style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+              {(historyCard.history ?? []).every(m => m.consumido === 0) && (
+                <p className="text-sm text-gray-400 text-center py-2">Sin consumo registrado en los últimos 6 meses.</p>
+              )}
             </div>
           </div>
         </div>
