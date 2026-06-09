@@ -87,11 +87,11 @@ export default function KilometrajeClient({ orders, isDriver }: { orders: Order[
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+      <div className={`grid grid-cols-2 gap-4 mb-6 ${isDriver ? "sm:grid-cols-3" : "sm:grid-cols-4"}`}>
         {[
           { label: "Km recorridos", value: km(totalKm), color: "bg-purple-500", icon: Gauge },
           { label: "Órdenes", value: filtered.length, color: "bg-blue-500", icon: Package },
-          { label: "Conductores", value: porConductor.length, color: "bg-amber-500", icon: UserRound },
+          ...(isDriver ? [] : [{ label: "Conductores", value: porConductor.length, color: "bg-amber-500", icon: UserRound }]),
           { label: "Unidades", value: porUnidad.length, color: "bg-emerald-500", icon: Truck },
         ].map(k => { const Icon = k.icon; return (
           <div key={k.label} className="bg-white rounded-xl shadow-sm p-4 flex items-center gap-3">
@@ -103,11 +103,13 @@ export default function KilometrajeClient({ orders, isDriver }: { orders: Order[
 
       {/* Controles */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
-        <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
-          {([["orden", "Por Orden"], ["conductor", "Por Conductor"], ["unidad", "Por Unidad"]] as const).map(([t, label]) => (
-            <button key={t} onClick={() => setTab(t)} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${tab === t ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>{label}</button>
-          ))}
-        </div>
+        {!isDriver && (
+          <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
+            {([["orden", "Por Orden"], ["conductor", "Por Conductor"], ["unidad", "Por Unidad"]] as const).map(([t, label]) => (
+              <button key={t} onClick={() => setTab(t)} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${tab === t ? "bg-white shadow-sm text-gray-900" : "text-gray-500 hover:text-gray-700"}`}>{label}</button>
+            ))}
+          </div>
+        )}
         <div className="relative flex-1 min-w-[180px] max-w-xs">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar placa, conductor, orden…"
