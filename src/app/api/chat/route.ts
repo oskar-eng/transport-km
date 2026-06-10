@@ -48,7 +48,11 @@ const STATUS_LABELS: Record<string, string> = {
 
 // Arma una foto compacta de los datos de la flota para dar contexto al asistente
 async function buildSnapshot() {
-  const [units, drivers, maints, orders] = await Promise.all([
+  const now = new Date();
+  const inicioMes = new Date(now.getFullYear(), now.getMonth(), 1);
+  const mesNombre = now.toLocaleDateString("es-PE", { month: "long", year: "numeric" });
+
+  const [units, drivers, maints, orders, fuelMes, cards, sanciones] = await Promise.all([
     prisma.unit.findMany({ include: { unitDocuments: true } }),
     prisma.user.findMany({
       where: { role: "CONDUCTOR" },
@@ -62,9 +66,51 @@ async function buildSnapshot() {
       include: { unit: { select: { plate: true } }, driver: { select: { name: true } } },
       orderBy: { createdAt: "desc" }, take: 30,
     }),
+    // Cargas de combustible del mes en curso
+    prisma.fuelRecord.findMany({
+      where: { date: { gte: inicioMes } },
+      include: { unit: { select: { plate: true } } },
+      orderBy: { date: "desc" },
+    }),
+    // Tarjetas de combustible (saldo Petrothor)
+    prisma.fuelCard.findMany({ include: { unit: { select: { plate: true } } } }),
+    // Sanciones / papeletas
+    prisma.sancion.findMany({
+      include: { unit: { select: { plate: true } }, driver: { select: { name: true } } },
+      orderBy: { date: "desc" }, take: 60,
+    }),
   ]);
 
+  // Combustible del mes agrupado por unidad
+  const combMap: Record<string, { placa: string; galones: number; costo: number; cargas: number }> = {};
+  for (const f of fuelMes) {
+    const p = f.unit?.plate ?? "?";
+    if (!combMap[p]) combMap[p] = { placa: p, galones: 0, costo: 0, cargas: 0 };
+    combMap[p].galones += f.liters; combMap[p].costo += f.totalCost ?? 0; combMap[p].cargas += 1;
+  }
+  // Saldo de cada tarjeta (límite - consumo del mes por DNI o unidad asignada)
+  const consumoTarjeta = (c: { holderDni: string; unitId: string | null }) =>
+    fuelMes.filter(f => f.driverDni === c.holderDni || (c.unitId != null && f.unitId === c.unitId))
+      .reduce((s, f) => s + (f.totalCost ?? 0), 0);
+
   return {
+    mesActual: mesNombre,
+    combustibleDelMes: Object.values(combMap).map(v => ({
+      placa: v.placa, galones: Math.round(v.galones * 100) / 100, costoSoles: Math.round(v.costo * 100) / 100, cargas: v.cargas,
+    })),
+    tarjetasCombustible: cards.map(c => {
+      const consumido = consumoTarjeta(c);
+      return {
+        conductor: c.holderName, dni: c.holderDni, placaAsignada: c.unit?.plate ?? null,
+        saldoMensual: c.monthlyLimit, consumidoMes: Math.round(consumido * 100) / 100,
+        disponible: Math.round(Math.max(0, c.monthlyLimit - consumido) * 100) / 100,
+      };
+    }),
+    sanciones: sanciones.map(s => ({
+      tipo: s.type, placa: s.unit?.plate ?? null, conductor: s.driver?.name ?? null,
+      descripcion: s.description, monto: s.amount ?? null, estado: s.status,
+      fecha: s.date.toISOString().slice(0, 10),
+    })),
     unidades: units.map(u => {
       const docs = u.unitDocuments.map(d => ({ type: d.type, expiryDate: d.expiryDate?.toISOString() ?? null, fileUrl: d.fileUrl }));
       return {
@@ -131,6 +177,10 @@ Reglas de información:
 - Cuando te pregunten por documentos de una placa o conductor, REVISA su lista "documentos" y di claramente cuáles faltan, cuáles están vencidos, cuáles por vencer y cuáles OK. Menciona el nombre del documento y su fecha de vencimiento si la tiene.
 - "Habilitado" = TODOS sus documentos están vigentes (con archivo y fecha al día). "Deshabilitado/Inhabilitado" = le falta o venció algún documento; en ese caso indica EXACTAMENTE cuál(es) es el problema.
 - "En Taller" o "MANTENIMIENTO" = unidad en mantenimiento.
+- COMBUSTIBLE: "combustibleDelMes" tiene, por placa, los galones cargados, el costo en soles y la cantidad de cargas del mes actual ("mesActual"). Úsalo cuando pregunten cuánto combustible/galones/gasto lleva una unidad este mes.
+- TARJETAS: "tarjetasCombustible" tiene, por conductor, el saldo mensual, lo consumido y el saldo DISPONIBLE de su tarjeta Petrothor. Úsalo cuando pregunten "cuánto saldo/combustible le queda" a un conductor o placa.
+- SANCIONES: "sanciones" tiene las papeletas/multas con tipo, placa, conductor, monto, estado (PENDIENTE/PAGADA/ANULADA) y fecha. Úsalo cuando pregunten por papeletas o multas de una unidad o conductor.
+- Cuando des montos de dinero, usa el formato "S/ 1,234.56".
 - Si no hay datos para responder, dilo con amabilidad. Nunca inventes información.
 - Usa viñetas cuando listes varios elementos para que se lea fácil.
 
